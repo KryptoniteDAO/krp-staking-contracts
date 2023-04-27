@@ -1,0 +1,41 @@
+[package]
+name = "basset_sei_token_bsei"
+version = "1.0.0"
+authors = ["<smith@kryptonite.finance>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all init/handle/query exports
+library = []
+
+[dependencies]
+cw2 = { version = "0.16.0" }
+cw20 = { version = "0.16.0" }
+cosmwasm-std = { version = "1.0.0" }
+cosmwasm-storage = { version = "1.0.0" }
+cw-storage-plus = { version = "0.13.2" }
+schemars = "0.8.8"
+cw20-legacy = { path = "../../packages/cw20-legacy", version = "1.2.0" , features = ["library"]}
+serde = { version = "1.0.147", default-features = false, features = ["derive"] }
+snafu = { version = "0.7.3" }
+basset = { path = "../../packages/basset", default-features = false, version = "0.1.0"}
+basset_sei_rewards_dispatcher = {path = "../basset_sei_rewards_dispatcher", features = ["library"] }
+
+[dev-dependencies]
+# we only need to enable this if we use integration tests
+cosmwasm-schema = { version = "1.0.0" }
