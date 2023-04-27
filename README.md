@@ -1,8 +1,8 @@
 # Lido Terra Contracts
 
-This monorepository contains the source code for the smart contracts implementing bAsset Protocol on the [Terra](https://terra.money) blockchain.
+This monorepository contains the source code for the smart contracts implementing bAsset Protocol on the [Sei](https://seinetwork.io) blockchain.
 
-You can find information about the architecture, usage, and function of the smart contracts on the official documentation [site](https://lidofinance.github.io/terra-docs/).
+You can find information about the architecture, usage, and function of the smart contracts on the official documentation [site]().
 
 
 ## Contracts
@@ -10,8 +10,8 @@ You can find information about the architecture, usage, and function of the smar
 | --------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | [`basset_sei_hub`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_hub)|[doc](https://lidofinance.github.io/terra-docs/contracts/hub)| Manages minted bsei and bonded sei
 | [`basset_sei_reward`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_reward)|[doc](https://lidofinance.github.io/terra-docs/contracts/reward)|Manages the distribution of delegation rewards
-| [`basset_sei_token_bsei`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_token_bsei)| [doc](https://lidofinance.github.io/terra-docs/contracts/stLuna_and_bLuna)|CW20 compliance
-| [`basset_sei_rewards_dispatcher`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_rewards_dispatcher)| [doc](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/rewards_dispatcher)|Accumulates the rewards from Hub's delegations and manages the rewards
+| [`basset_sei_token_bsei`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_token_bsei)| [doc](https://lidofinance.github.io/terra-docs/contracts/basset_sei_token_bsei)|CW20 compliance
+| [`basset_sei_rewards_dispatcher`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_rewards_dispatcher)| [doc](https://lidofinance.github.io/terra-docs/contracts/rewards_dispatcher)|Accumulates the rewards from Hub's delegations and manages the rewards
 | [`basset_sei_token_stsei`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_token_stsei)| [doc](https://lidofinance.github.io/terra-docs/contracts/stLuna_and_bLuna)|CW20 compliance for stsei
 | [`basset_sei_validators_registry`](https://github.com/KryptoniteDAO/krp-staking-contracts/tree/master/contracts/basset_sei_validators_registry)| [doc](https://lidofinance.github.io/terra-docs/contracts/validators_registry)|Approved validators whitelist
 
