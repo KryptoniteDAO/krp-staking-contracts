@@ -1,0 +1,13 @@
+artifacts
+*/artifacts
+.idea
+target
+*/target
+Cargo.lock
+*/Cargo.lock
+node_modules
+*/node_modules
+*/.env
+*/.env*
+pnpm-lock.yaml
+*/pnpm-lock.yaml
