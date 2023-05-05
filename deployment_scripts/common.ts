@@ -1,6 +1,6 @@
 import { getQueryClient, getSigningClient, getSigningCosmWasmClient } from '@sei-js/core';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
-import { calculateFee } from '@cosmjs/stargate';
+import { calculateFee, logs } from '@cosmjs/stargate';
 import { Coin } from "@cosmjs/amino";
 import { InstantiateResult } from '@cosmjs/cosmwasm-stargate';
 import * as fs from "fs";
@@ -36,11 +36,10 @@ export async function instantiateContract(RPC_ENDPOINT: string, wallet: DirectSe
 
 export async function instantiateContract2(RPC_ENDPOINT: string, wallet: DirectSecp256k1HdWallet, codeId: number, message: object, coins: Coin[], label: string) {
   console.log(`Instantiating contract with code_id = ${codeId}...`)
-  const fee = calculateFee(300000, "0.1usei");
+  const fee = calculateFee(500000, "0.1usei");
   const [firstAccount] = await wallet.getAccounts();
   const signCosmWasmClient = await getSigningCosmWasmClient(RPC_ENDPOINT, wallet);
   const instantiateTxResult = await signCosmWasmClient.instantiate(firstAccount.address, codeId, message, label, fee, { memo: "", funds: coins });
-  //   console.log(`instantiate ret:${JSON.stringify(instantiateTxResult)}`);
   return getContractAddressess(instantiateTxResult);
 }
 
@@ -48,17 +47,15 @@ function getContractAddressess(txResult: InstantiateResult, msgIndex = 0): [stri
 
   let eventName: string;
   let attributeKey: string;
-
   eventName = 'instantiate';
   attributeKey = '_contract_address';
-
-  let contractAddress1: string = txResult.logs[msgIndex].events[eventName][attributeKey][0];;
-  let contractAddress2: string = txResult.logs[msgIndex].events[eventName][attributeKey][1];
+  let contractAddress1: string = txResult.logs[0].events[2].attributes[0].value;
+  let contractAddress2: string = txResult.logs[0].events[2].attributes[2].value;
   return [contractAddress1, contractAddress2];
 }
 
 export async function executeContract(RPC_ENDPOINT: string, wallet: DirectSecp256k1HdWallet, contractAddress: string, message: object, label: string, coins: Coin[]) {
-  const fee = calculateFee(1500000, "0.1usei");
+  const fee = calculateFee(2000000, "0.1usei");
   const [firstAccount] = await wallet.getAccounts();
   const signCosmWasmClient = await getSigningCosmWasmClient(RPC_ENDPOINT, wallet);
   const executeTxResult = await signCosmWasmClient.execute(firstAccount.address, contractAddress, message, fee, label, coins);
@@ -70,7 +67,6 @@ export async function migrateContract(RPC_ENDPOINT: string, wallet: DirectSecp25
   const fee = calculateFee(300000, "0.1usei");
   const [firstAccount] = await wallet.getAccounts();
   const signCosmWasmClient = await getSigningCosmWasmClient(RPC_ENDPOINT, wallet);
-
   const migrateTxResult = await signCosmWasmClient.migrate(firstAccount.address, contractAddress, newCodeId, migrateMsg, fee, memo);
   return migrateTxResult;
 }
@@ -80,7 +76,6 @@ export async function sendCoin(RPC_ENDPOINT: string, wallet: DirectSecp256k1HdWa
     denom: coin.denom,
     amount: new Decimal(coin.amount).mul(new Decimal("10").pow(6)).toString()
   }
-
   const fee = calculateFee(300000, "0.1usei");
   const [firstAccount] = await wallet.getAccounts();
   const signClient = await getSigningClient(RPC_ENDPOINT, wallet);
