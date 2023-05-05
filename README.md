@@ -1,4 +1,4 @@
-# Lido Terra Contracts
+# Lido Sei Contracts
 
 This monorepository contains the source code for the smart contracts implementing bAsset Protocol on the [Sei](https://seinetwork.io) blockchain.
 
