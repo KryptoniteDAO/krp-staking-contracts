@@ -2,8 +2,8 @@ import {
     storeCode, instantiateContract, executeContract, queryStakingDelegations,
     queryWasmContract, queryAddressBalance, queryStaking, queryStakingParameters, sendCoin
 } from "./common";
-import {DirectSecp256k1HdWallet} from '@cosmjs/proto-signing';
-import {parseCoins, coins, coin} from "@cosmjs/stargate";
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
+import { parseCoins, coins, coin } from "@cosmjs/stargate";
 
 require("dotenv").config();
 
@@ -25,9 +25,9 @@ async function main(): Promise<void> {
     }
 
     const prefix = process.env.PREFIX ?? "sei";
-    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {prefix});
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix });
     const [account] = await wallet.getAccounts();
-    const wallet2 = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic2, {prefix});
+    const wallet2 = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic2, { prefix });
     const [account2] = await wallet2.getAccounts();
 
     console.log(`address1: `, account.address)
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
             {
                 decimals: 6, hub_contract: hubContractAddress, initial_balances: [],
                 name: "bsei", symbol: "BSEI",
-                mint: {minter: hubContractAddress, cap: null}
+                mint: { minter: hubContractAddress, cap: null }
             }, parseCoins(""), "bond sei")
     }
     if (!rewardsDispatcherAddress) {
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
                 hub_contract: hubContractAddress,
                 initial_balances: [],
                 name: "stsei", symbol: "STSEI",
-                mint: {minter: hubContractAddress, cap: null}
+                mint: { minter: hubContractAddress, cap: null }
             }, parseCoins(""), "staking sei")
     }
 
@@ -158,7 +158,6 @@ async function main(): Promise<void> {
     console.log()
 
     // //////////////////////////////////////configure contracts///////////////////////////////////////////
-    // //////////////////////////////////////must behind deploy moneymarket contract///////////////////////
 
     if (deployAddressFlag) {
         console.log("Updating hub's config...")
@@ -174,14 +173,26 @@ async function main(): Promise<void> {
         console.log("Updating hub's config end")
     }
 
+    let ret = await executeContract(RPC_ENDPOINT, wallet, hubContractAddress, {
+        update_params: {
+            epoch_period: 260000,
+            unbonding_period: 259200,
+            peg_recovery_fee: "0.005",
+            er_threshold: "1.0",
+        }
+    }, "", parseCoins(""))
+    console.log(`ret: ${JSON.stringify(ret)}`)
+    console.log("Updating hub's params end")
+
+    await queryWasmContract(RPC_ENDPOINT, wallet, hubContractAddress, {parameters: {}})
     //======================deployed contracts，change creater to update_global_index=======================================//
     //change creater，
-    // await executeContract(RPC_ENDPOINT, wallet, hubAddress,
-    // {
-    //   update_config: {
-    //     owner : "sei1xm3mccak0yjfts96jszdldxka6xkw00ywv6au0"
-    //   }
-    // }, "", parseCoins("") )
+    // await executeContract(RPC_ENDPOINT, wallet, hubContractAddress,
+    //     {
+    //         update_config: {
+    //             owner: "sei1tuh3wf58ruqp06f9sl52uaevv502ju565khc6d"
+    //         }
+    //     }, "", parseCoins(""))
     // console.log("transfer owener ok.")
 
 
@@ -230,7 +241,7 @@ async function main(): Promise<void> {
     await queryStakingParameters(LCD_ENDPOINT);
 
     // console.log("query delegations list:")
-    // await queryStakingDelegations(LCD_ENDPOINT, account.address, "seivaloper1wukzl3ppckudkkny744k4kmrw0p0l6h98sm43s");
+    await queryStakingDelegations(LCD_ENDPOINT, hubContractAddress , validator);
 
     console.log("withdraw able unbonded:")
     let withdrawRet = await executeContract(RPC_ENDPOINT, wallet, hubContractAddress, {withdraw_unbonded: {}}, "", parseCoins(""))
@@ -257,8 +268,6 @@ async function main(): Promise<void> {
     console.log("query rewards balance:")
     await queryAddressBalance(LCD_ENDPOINT, rewardAddress, stable_coin_denom)
 
-    // console.log("query test2 balance:")
-    // await queryAddressBalance(LCD_ENDPOINT, account2.address, "")
 
     console.log("claim reward:")
     let claimRewardRet = await executeContract(RPC_ENDPOINT, wallet, rewardAddress,
@@ -276,20 +285,20 @@ async function main(): Promise<void> {
     await queryAddressBalance(LCD_ENDPOINT, account2.address, "")
 
 
-    // let recAddress = "sei1tqm527sqmuw2tmmnlydge024ufwnvlv9e7draq";
-    // // 2.2 send stable coin to test2 address
-    // let sendCoinRet = await sendCoin(RPC_ENDPOINT, wallet, recAddress, "", coin(10000000, stable_coin_denom))
-    // console.log(`send stable token to ${recAddress} succeed`);
-    // console.log(`query ${recAddress} usdc balance:`);
-    // let queryUsdcRet = await queryAddressBalance(LCD_ENDPOINT, recAddress, "")
+    let recAddress = "sei1tqm527sqmuw2tmmnlydge024ufwnvlv9e7draq";
+    // 2.2 send stable coin to test2 address
+    let sendCoinRet = await sendCoin(RPC_ENDPOINT, wallet, recAddress, "", coin(1000, stable_coin_denom))
+    console.log(`send stable token to ${recAddress} succeed`);
+    console.log(`query ${recAddress} usdc balance:`);
+    let queryUsdcRet = await queryAddressBalance(LCD_ENDPOINT, recAddress, "")
 
 
     //***Test sending denom usdt token and sei coin**/
     // let receipientAddress = "sei1mlwyp04y5g95klqzq92tun0xsz7t5sef4h88a3";
     // // console.log("send denom usdt token to address:")
-    // // await sendCoin(RPC_ENDPOINT, wallet, receipientAddress, "", coin(100000000, stable_coin_denom))
+    // // await sendCoin(RPC_ENDPOINT, wallet, receipientAddress, "", coin(1000, stable_coin_denom))
     // // console.log("send sei to address:")
-    // // await sendCoin(RPC_ENDPOINT, wallet, receipientAddress, "", coin(100000000, "usei"))
+    // // await sendCoin(RPC_ENDPOINT, wallet, receipientAddress, "", coin(10, "usei"))
     // console.log(`query ${receipientAddress} balance:`)
     // await queryAddressBalance(LCD_ENDPOINT, receipientAddress, "")
 
