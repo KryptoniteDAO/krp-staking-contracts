@@ -18,14 +18,14 @@ use crate::state::{
     store_unbond_wait_list, CONFIG, CURRENT_BATCH, PARAMETERS, STATE,
 };
 use basset::hub::{CurrentBatch, State, UnbondHistory, UnbondType};
+use basset_sei_validators_registry::common::calculate_undelegations;
+use basset_sei_validators_registry::registry::ValidatorResponse;
 use cosmwasm_bignumber::{Decimal256, Uint256};
 use cosmwasm_std::{
     attr, coin, coins, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
     StakingMsg, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use basset_sei_validators_registry::common::calculate_undelegations;
-use basset_sei_validators_registry::registry::ValidatorResponse;
 use signed_integer::SignedInt;
 
 /// This message must be call by receive_cw20
@@ -125,7 +125,7 @@ pub fn execute_withdraw_unbonded(
 ) -> StdResult<Response> {
     let sender_human = info.sender;
     let contract_address = env.contract.address.clone();
-    
+
     // read params
     let params = PARAMETERS.load(deps.storage)?;
     let unbonding_period = params.unbonding_period;
@@ -168,7 +168,6 @@ pub fn execute_withdraw_unbonded(
         amount: coins(withdraw_amount.u128(), &*coin_denom),
     }
     .into()];
-
 
     let res = Response::new().add_messages(msgs).add_attributes(vec![
         attr("action", "finish_burn"),
@@ -403,7 +402,6 @@ pub(crate) fn execute_unbond_stsei(
     sender: String,
 ) -> StdResult<Response> {
     // Read params
-    
 
     // let mut res = Response::new()
     //     .add_attribute("Let the", "hacking begin")
@@ -441,7 +439,6 @@ pub(crate) fn execute_unbond_stsei(
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    
     // let res = Response::new().add_attributes(vec![
     //     attr("action", "execute_unbond_stsei"),
     //     attr("from", sender),
@@ -449,8 +446,7 @@ pub(crate) fn execute_unbond_stsei(
     //     attr("unbonded_amount", amount),
     // ]);
     // return Ok(res);
-    
-     
+
     // If the epoch period is passed, the undelegate message would be sent.
     if passed_time > epoch_period {
         let mut undelegate_msgs =
@@ -473,7 +469,7 @@ pub(crate) fn execute_unbond_stsei(
             })?)?;
 
     let burn_msg = Cw20ExecuteMsg::Burn { amount };
-   
+
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_address.to_string(),
         msg: to_binary(&burn_msg)?,
@@ -497,8 +493,7 @@ fn process_undelegations(
 ) -> StdResult<Vec<CosmosMsg>> {
     // Apply the current exchange rate.
     let stsei_undelegation_amount = current_batch.requested_stsei * state.stsei_exchange_rate;
-    let bsei_undelegation_amount =
-        current_batch.requested_bsei_with_fee * state.bsei_exchange_rate;
+    let bsei_undelegation_amount = current_batch.requested_bsei_with_fee * state.bsei_exchange_rate;
     let delegator = env.contract.address;
 
     // Send undelegated requests to possibly more than one validators

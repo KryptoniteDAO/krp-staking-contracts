@@ -20,8 +20,9 @@ use crate::state::{
 use basset::reward::{AccruedRewardsResponse, HolderResponse, HoldersResponse};
 
 use cosmwasm_std::{
-    attr, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, BankMsg, Coin};   
+    attr, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
+};
 
 use crate::math::{
     decimal_multiplication_in_256, decimal_subtraction_in_256, decimal_summation_in_256,
@@ -65,8 +66,6 @@ pub fn execute_claim_rewards(
     holder.index = state.global_index;
     store_holder(deps.storage, &holder_addr_raw, &holder)?;
 
-
-    
     let bank_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: recipient.to_string(),
         amount: vec![deduct_tax(

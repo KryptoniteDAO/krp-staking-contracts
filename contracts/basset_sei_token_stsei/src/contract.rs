@@ -108,10 +108,10 @@ pub fn execute(
             marketing,
         } => execute_update_marketing(deps, env, info, project, description, marketing),
         ExecuteMsg::UploadLogo(logo) => execute_upload_logo(deps, env, info, logo),
-        ExecuteMsg::UpdateMinter { new_minter, 
-        } =>execute_update_minter(deps, env, info, new_minter),
+        ExecuteMsg::UpdateMinter { new_minter } => {
+            execute_update_minter(deps, env, info, new_minter)
+        }
     }
-      
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

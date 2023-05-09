@@ -130,8 +130,8 @@ pub fn get_finished_amount(
         let history = read_unbond_history(storage, user_batch);
         if let Ok(h) = history {
             if h.released {
-                withdrawable_amount += v.stsei_amount * h.stsei_withdraw_rate
-                    + v.bsei_amount * h.bsei_withdraw_rate;
+                withdrawable_amount +=
+                    v.stsei_amount * h.stsei_withdraw_rate + v.bsei_amount * h.bsei_withdraw_rate;
                 deprecated_batches.push(user_batch);
             }
         }
@@ -155,8 +155,8 @@ pub fn query_get_finished_amount(
         let history = read_unbond_history(storage, user_batch);
         if let Ok(h) = history {
             if h.time < block_time {
-                withdrawable_amount += v.stsei_amount * h.stsei_withdraw_rate
-                    + v.bsei_amount * h.bsei_withdraw_rate;
+                withdrawable_amount +=
+                    v.stsei_amount * h.stsei_withdraw_rate + v.bsei_amount * h.bsei_withdraw_rate;
             }
         }
     }

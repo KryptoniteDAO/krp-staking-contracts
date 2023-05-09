@@ -16,9 +16,9 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, DistributionMsg,
-    Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult, Uint128, WasmMsg,
-    WasmQuery, BankMsg,
+    attr, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    DistributionMsg, Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult,
+    Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::config::{execute_update_config, execute_update_params};
@@ -38,10 +38,10 @@ use basset::hub::{
     UnbondRequestsResponse, WithdrawableUnbondedResponse,
 };
 use basset::hub::{Cw20HookMsg, ExecuteMsg};
-use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
-use basset_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards};
+use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
 use basset_sei_validators_registry::msg::ExecuteMsg::AddValidator;
 use basset_sei_validators_registry::registry::Validator;
+use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -113,7 +113,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     if let ExecuteMsg::MigrateUnbondWaitList { limit } = msg {
         return migrate_unbond_wait_lists(deps.storage, limit);
     }
-  
+
     if let ExecuteMsg::UpdateParams {
         epoch_period,
         unbonding_period,
@@ -133,20 +133,19 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             paused,
         );
     }
-   
+
     let params: Parameters = PARAMETERS.load(deps.storage)?;
     if params.paused.unwrap_or(false) {
         return Err(StdError::generic_err("the contract is temporarily paused"));
     }
-   
+
     match msg {
         ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::Bond {} => execute_bond(deps, env, info, BondType::BSei),
         ExecuteMsg::BondForStSei {} => execute_bond(deps, env, info, BondType::StSei),
         ExecuteMsg::BondRewards {} => execute_bond(deps, env, info, BondType::BondRewards),
-        ExecuteMsg::UpdateGlobalIndex {airdrop_hooks, } =>
-        {
-           execute_update_global(deps, env, info, airdrop_hooks)
+        ExecuteMsg::UpdateGlobalIndex { airdrop_hooks } => {
+            execute_update_global(deps, env, info, airdrop_hooks)
         }
         ExecuteMsg::WithdrawUnbonded {} => execute_withdraw_unbonded(deps, env, info),
         ExecuteMsg::CheckSlashing {} => execute_slashing(deps, env),
@@ -221,7 +220,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             redelegations,
         } => execute_redelegate_proxy(deps, env, info, src_validator, redelegations),
         ExecuteMsg::MigrateUnbondWaitList { limit: _ } => Err(StdError::generic_err("forbidden")),
-    }   
+    }
 }
 
 pub fn execute_redelegate_proxy(
@@ -304,19 +303,15 @@ pub fn receive_cw20(
             } else {
                 Err(StdError::generic_err("unauthorized"))
             }
-        }
-
-        // Cw20HookMsg::UpdateGlobalIndex{
-        //     airdrop_hooks
-        // }=> {
-        //     if cw20_msg.sender == deps.api.addr_humanize(&conf.creator)?.to_string() {
-        //         execute_update_global(deps, env, info, cw20_msg.amount, airdrop_hooks)
-        //     } else {
-        //         Err(StdError::generic_err("unauthorized"))
-        //     }
-        // }
-
-
+        } // Cw20HookMsg::UpdateGlobalIndex{
+          //     airdrop_hooks
+          // }=> {
+          //     if cw20_msg.sender == deps.api.addr_humanize(&conf.creator)?.to_string() {
+          //         execute_update_global(deps, env, info, cw20_msg.amount, airdrop_hooks)
+          //     } else {
+          //         Err(StdError::generic_err("unauthorized"))
+          //     }
+          // }
     }
 }
 
@@ -328,7 +323,7 @@ pub fn execute_update_global(
     info: MessageInfo,
     airdrop_hooks: Option<Vec<Binary>>,
 ) -> StdResult<Response> {
-    let mut messages: Vec<CosmosMsg> = vec![];    
+    let mut messages: Vec<CosmosMsg> = vec![];
     let config = CONFIG.load(deps.storage)?;
     let reward_dispatcher_addr =
         deps.api
@@ -350,7 +345,7 @@ pub fn execute_update_global(
             }))
         }
     }
-   
+
     // Send withdraw message
     let mut withdraw_msgs = withdraw_all_rewards(&deps, env.contract.address.to_string())?;
     messages.append(&mut withdraw_msgs);
@@ -372,11 +367,13 @@ pub fn execute_update_global(
     // let stable_contract = deps.api.addr_humanize(&config.stable_contract.ok_or_else(|| {
     //     StdError::generic_err("the stable contract must have been configured")
     // })?)?.to_string();
-    let rewards_contract = deps.api.addr_humanize(&config.rewards_contract.ok_or_else(|| {
-        StdError::generic_err("the rewards contract must have been configured")
-    })?)?.to_string();
+    let rewards_contract = deps
+        .api
+        .addr_humanize(&config.rewards_contract.ok_or_else(|| {
+            StdError::generic_err("the rewards contract must have been configured")
+        })?)?
+        .to_string();
 
-   
     // messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
     //     contract_addr: stable_contract.to_string(),
     //     msg:  to_binary(&Cw20ExecuteMsg::Transfer {
@@ -385,12 +382,14 @@ pub fn execute_update_global(
     //     funds: vec![],
     // }));
 
-    messages.push(BankMsg::Send {
+    messages.push(
+        BankMsg::Send {
             to_address: rewards_contract.to_string(),
             amount: info.funds,
         }
-        .into(),);
-    
+        .into(),
+    );
+
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: reward_dispatcher_addr.to_string(),
         msg: to_binary(&DispatchRewards {})?,
@@ -461,8 +460,7 @@ fn query_actual_state(deps: Deps, env: Env) -> StdResult<State> {
     let current_requested_stsei = current_batch.requested_stsei;
 
     if state_total_bonded.u128() > actual_total_bonded.u128() {
-        let bsei_bond_ratio =
-            Decimal::from_ratio(state.total_bond_bsei_amount, state_total_bonded);
+        let bsei_bond_ratio = Decimal::from_ratio(state.total_bond_bsei_amount, state_total_bonded);
         state.total_bond_bsei_amount = actual_total_bonded * bsei_bond_ratio;
         state.total_bond_stsei_amount =
             actual_total_bonded.checked_sub(state.total_bond_bsei_amount)?;

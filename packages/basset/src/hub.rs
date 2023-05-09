@@ -191,7 +191,6 @@ pub enum Cw20HookMsg {
     // UpdateGlobalIndex {
     //     airdrop_hooks: Option<Vec<Binary>>,
     // },
-
 }
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Parameters {

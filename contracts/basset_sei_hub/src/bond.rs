@@ -16,14 +16,14 @@ use crate::contract::{query_total_bsei_issued, query_total_stsei_issued, slashin
 use crate::math::decimal_division;
 use crate::state::{CONFIG, CURRENT_BATCH, PARAMETERS, STATE};
 use basset::hub::BondType;
+use basset_sei_validators_registry::common::calculate_delegations;
+use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
+use basset_sei_validators_registry::registry::ValidatorResponse;
 use cosmwasm_std::{
     attr, to_binary, Coin, CosmosMsg, DepsMut, Env, MessageInfo, QueryRequest, Response,
     StakingMsg, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 use cw20::Cw20ExecuteMsg;
-use basset_sei_validators_registry::common::calculate_delegations;
-use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
-use basset_sei_validators_registry::registry::ValidatorResponse;
 
 pub fn execute_bond(
     mut deps: DepsMut,
@@ -31,13 +31,12 @@ pub fn execute_bond(
     info: MessageInfo,
     bond_type: BondType,
 ) -> Result<Response, StdError> {
- 
     let params = PARAMETERS.load(deps.storage)?;
     let coin_denom = params.underlying_coin_denom;
     let threshold = params.er_threshold;
     let recovery_fee = params.peg_recovery_fee;
     let config = CONFIG.load(deps.storage)?;
-   
+
     let reward_dispatcher_addr =
         deps.api
             .addr_humanize(&config.reward_dispatcher_contract.ok_or_else(|| {
@@ -54,7 +53,7 @@ pub fn execute_bond(
         BondType::BSei => current_batch.requested_bsei_with_fee,
         BondType::StSei | BondType::BondRewards => current_batch.requested_stsei,
     };
-   
+
     // coin must have be sent along with transaction and it should be in underlying coin denom
     if info.funds.len() > 1usize {
         return Err(StdError::generic_err(
@@ -70,7 +69,7 @@ pub fn execute_bond(
         .ok_or_else(|| {
             StdError::generic_err(format!("No {} assets are provided to bond", coin_denom))
         })?;
- 
+
     // check slashing
     let state = slashing(&mut deps, env)?;
 
@@ -83,7 +82,7 @@ pub fn execute_bond(
             query_total_stsei_issued(deps.as_ref()).unwrap_or_default()
         }
     };
-  
+
     // peg recovery fee should be considered
     let mint_amount = match bond_type {
         BondType::BSei => {
@@ -105,7 +104,7 @@ pub fn execute_bond(
 
     // total supply should be updated for exchange rate calculation.
     total_supply += mint_amount;
-  
+
     // exchange rate should be updated for future
     STATE.update(deps.storage, |mut prev_state| -> StdResult<_> {
         match bond_type {
@@ -125,7 +124,7 @@ pub fn execute_bond(
             }
         }
     })?;
-   
+
     let validators_registry_contract = if let Some(v) = config.validators_registry_contract {
         v
     } else {
@@ -141,13 +140,11 @@ pub fn execute_bond(
                 .to_string(),
             msg: to_binary(&QueryValidators::GetValidatorsForDelegation {})?,
         }))?;
-    
-    
-    
+
     // if !validators.is_empty() {
     //     let mut check_str ="validators query".to_string();
     //     check_str += &validators[0].address.to_string();
-        
+
     //     return Err(StdError::generic_err(
     //         check_str
     //     ));
@@ -170,7 +167,7 @@ pub fn execute_bond(
             amount: Coin::new(delegations[i].u128(), payment.denom.as_str()),
         }));
     }
-    
+
     //we don't need to mint stSei when bonding rewards
     if bond_type == BondType::BondRewards {
         let res = Response::new()
@@ -182,7 +179,7 @@ pub fn execute_bond(
             ]);
         return Ok(res);
     }
-    
+
     let mint_msg = Cw20ExecuteMsg::Mint {
         recipient: sender.to_string(),
         amount: mint_amount,
@@ -222,5 +219,4 @@ pub fn execute_bond(
         ]);
 
     Ok(res)
-    
 }

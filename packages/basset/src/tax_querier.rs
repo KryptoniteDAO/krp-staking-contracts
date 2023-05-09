@@ -1,14 +1,13 @@
 use cosmwasm_std::{Coin, Decimal, QuerierWrapper, StdResult, Uint128};
 
-
 //static DECIMAL_FRACTION: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
 // pub fn compute_tax(_querier: &QuerierWrapper, _coin: &Coin) -> StdResult<Uint128> {
 //     // https://docs.terra.money/Reference/Terra-core/Module-specifications/spec-auth.html#stability-fee
 //     // In addition to the gas fee, the ante handler charges a stability fee that is a percentage of the transaction's value only for the Stable Coins except LUNA.
-    
+
 //     return Ok(Uint128::zero());
-    
+
 //     // let terra_querier = TerraQuerier::new(querier);
 //     // let tax_rate: Decimal = (terra_querier.query_tax_rate()?).rate;
 //     // let tax_cap: Uint128 = (terra_querier.query_tax_cap(coin.denom.to_string())?).cap;

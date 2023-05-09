@@ -88,7 +88,7 @@ pub fn execute_update_config(
     airdrop_registry_contract: Option<String>,
     validators_registry_contract: Option<String>,
     stable_contract: Option<String>,
-    rewards_contract: Option<String>
+    rewards_contract: Option<String>,
 ) -> StdResult<Response> {
     // only owner must be able to send this message.
     let conf = CONFIG.load(deps.storage)?;
@@ -182,7 +182,6 @@ pub fn execute_update_config(
             Ok(last_config)
         })?;
     }
-
 
     let res = Response::new()
         .add_messages(messages)

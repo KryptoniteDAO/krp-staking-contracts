@@ -19,15 +19,10 @@ use crate::math::decimal_summation_in_256;
 use crate::querier::query_rewards_dispatcher_contract_address;
 use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
 
-
 /// Swap all native tokens to reward_denom
 /// Only hub_contract is allowed to execute
 #[allow(clippy::if_same_then_else)]
-pub fn execute_swap(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-) -> StdResult<Response> {
+pub fn execute_swap(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
     let config = read_config(deps.storage)?;
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     let owner_addr = deps
@@ -101,7 +96,7 @@ pub fn execute_update_global_index(
     if state.total_balance.is_zero() {
         return Ok(Response::new());
     }
-   
+
     let reward_denom = read_config(deps.storage)?.reward_denom;
 
     //Load the reward contract balance
@@ -109,10 +104,9 @@ pub fn execute_update_global_index(
         .querier
         .query_balance(env.contract.address, reward_denom.as_str())?;
 
-
     let previous_balance = state.prev_reward_balance;
 
-     //claimed_rewards = current_balance - prev_balance;
+    //claimed_rewards = current_balance - prev_balance;
     let claimed_rewards = balance.amount.checked_sub(previous_balance)?;
 
     state.prev_reward_balance = balance.amount;
@@ -127,10 +121,9 @@ pub fn execute_update_global_index(
     let attributes = vec![
         attr("action", "update_global_index"),
         attr("claimed_rewards", claimed_rewards),
-
     ];
     let res = Response::new().add_attributes(attributes);
-   
+
     Ok(res)
 }
 

@@ -22,7 +22,8 @@ use crate::user::{
     query_accrued_rewards, query_holder, query_holders,
 };
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128};
+    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+};
 
 use basset::reward::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse,
@@ -55,12 +56,7 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::ClaimRewards { recipient } => execute_claim_rewards(deps, env, info, recipient),
         ExecuteMsg::SwapToRewardDenom {} => execute_swap(deps, env, info),
@@ -71,7 +67,6 @@ pub fn execute(
         ExecuteMsg::DecreaseBalance { address, amount } => {
             execute_decrease_balance(deps, env, info, address, amount)
         }
-
     }
 }
 

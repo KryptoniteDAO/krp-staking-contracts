@@ -30,8 +30,8 @@ pub fn query_all_allowances(
 ) -> StdResult<AllAllowancesResponse> {
     let owner_addr = deps.api.addr_canonicalize(&owner)?;
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start =
-        calc_range_start_human(deps.api, start_after.map(Addr::unchecked))?.map(Bound::ExclusiveRaw);
+    let start = calc_range_start_human(deps.api, start_after.map(Addr::unchecked))?
+        .map(Bound::ExclusiveRaw);
 
     let allowances: StdResult<Vec<AllowanceInfo>> = ALLOWANCES
         .prefix(owner_addr.as_slice())
@@ -57,8 +57,8 @@ pub fn query_all_accounts(
     limit: Option<u32>,
 ) -> StdResult<AllAccountsResponse> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start =
-        calc_range_start_human(deps.api, start_after.map(Addr::unchecked))?.map(Bound::ExclusiveRaw);
+    let start = calc_range_start_human(deps.api, start_after.map(Addr::unchecked))?
+        .map(Bound::ExclusiveRaw);
 
     let accounts: Result<Vec<_>, _> = BALANCES
         .keys(deps.storage, start, None, Order::Ascending)
@@ -173,7 +173,7 @@ mod tests {
             Some(allow.spender.clone()),
             Some(10000),
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(allowances.allowances.len(), 1);
         let allow = &allowances.allowances[0];
         assert_eq!(&allow.spender, &spender2);
@@ -234,7 +234,7 @@ mod tests {
                 amount: Uint128::from(222222u128),
             },
         )
-            .unwrap();
+        .unwrap();
         execute(
             deps.as_mut(),
             env.clone(),
@@ -244,7 +244,7 @@ mod tests {
                 amount: Uint128::from(333333u128),
             },
         )
-            .unwrap();
+        .unwrap();
         execute(
             deps.as_mut(),
             env,
@@ -254,7 +254,7 @@ mod tests {
                 amount: Uint128::from(444444u128),
             },
         )
-            .unwrap();
+        .unwrap();
 
         // make sure we get the proper results
         let accounts = query_all_accounts(deps.as_ref(), None, None).unwrap();

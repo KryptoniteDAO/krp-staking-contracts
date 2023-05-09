@@ -41,7 +41,6 @@ pub enum ExecuteMsg {
 
     /// return the accrued reward in uusd to the user.
     ClaimRewards { recipient: Option<String> },
-
     //UpdateConfig { stable_contract: String},
 }
 

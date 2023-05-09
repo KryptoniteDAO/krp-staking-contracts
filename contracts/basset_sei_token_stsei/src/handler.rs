@@ -24,7 +24,7 @@ use cw20_base::allowances::{
 use cw20_base::contract::{
     execute_burn as cw20_burn, execute_mint as cw20_mint, execute_send as cw20_send,
     execute_transfer as cw20_transfer, execute_update_marketing as cw20_update_marketing,
-    execute_upload_logo as cw20_upload_logo, execute_update_minter as cw20_update_minter,
+    execute_update_minter as cw20_update_minter, execute_upload_logo as cw20_upload_logo,
 };
 use cw20_base::ContractError;
 
@@ -62,11 +62,11 @@ pub fn execute_burn(
     }
     let res = cw20_burn(deps, env, info, amount)?;
     /* send message example
-    use cosmwasm_std::{coins, BankMsg};
-    let msg = BankMsg::Send { to_address: String::from("you"), amount: coins(1015, "earth") };
-    let sub_msg: SubMsg = SubMsg::reply_always(msg, 1234).with_gas_limit(60_000);
-    messages.push(sub_msg);
-   */
+     use cosmwasm_std::{coins, BankMsg};
+     let msg = BankMsg::Send { to_address: String::from("you"), amount: coins(1015, "earth") };
+     let sub_msg: SubMsg = SubMsg::reply_always(msg, 1234).with_gas_limit(60_000);
+     messages.push(sub_msg);
+    */
     Ok(Response::new()
         .add_submessages(messages)
         .add_attributes(res.attributes))
@@ -155,7 +155,6 @@ pub fn execute_upload_logo(
 ) -> Result<Response, ContractError> {
     cw20_upload_logo(deps, env, info, logo)
 }
-
 
 pub fn execute_update_minter(
     deps: DepsMut,

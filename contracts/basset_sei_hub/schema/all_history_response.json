@@ -28,13 +28,13 @@
         "amount",
         "applied_exchange_rate",
         "batch_id",
-        "bluna_amount",
-        "bluna_applied_exchange_rate",
-        "bluna_withdraw_rate",
+        "bsei_amount",
+        "bsei_applied_exchange_rate",
+        "bsei_withdraw_rate",
         "released",
-        "stluna_amount",
-        "stluna_applied_exchange_rate",
-        "stluna_withdraw_rate",
+        "stsei_amount",
+        "stsei_applied_exchange_rate",
+        "stsei_withdraw_rate",
         "time",
         "withdraw_rate"
       ],
@@ -50,25 +50,25 @@
           "format": "uint64",
           "minimum": 0.0
         },
-        "bluna_amount": {
+        "bsei_amount": {
           "$ref": "#/definitions/Uint128"
         },
-        "bluna_applied_exchange_rate": {
+        "bsei_applied_exchange_rate": {
           "$ref": "#/definitions/Decimal"
         },
-        "bluna_withdraw_rate": {
+        "bsei_withdraw_rate": {
           "$ref": "#/definitions/Decimal"
         },
         "released": {
           "type": "boolean"
         },
-        "stluna_amount": {
+        "stsei_amount": {
           "$ref": "#/definitions/Uint128"
         },
-        "stluna_applied_exchange_rate": {
+        "stsei_applied_exchange_rate": {
           "$ref": "#/definitions/Decimal"
         },
-        "stluna_withdraw_rate": {
+        "stsei_withdraw_rate": {
           "$ref": "#/definitions/Decimal"
         },
         "time": {

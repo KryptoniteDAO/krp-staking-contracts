@@ -35,8 +35,8 @@ use cosmwasm_std::{
     DepsMut, DistributionMsg, Env, FullDelegation, MessageInfo, OwnedDeps, Querier, QueryRequest,
     Response, StakingMsg, StdError, StdResult, Storage, Uint128, Validator, WasmMsg, WasmQuery,
 };
-use lido_terra_validators_registry::msg::QueryMsg as QueryValidators;
-use lido_terra_validators_registry::registry::ValidatorResponse as RegistryValidator;
+use lido_sei_validators_registry::msg::QueryMsg as QueryValidators;
+use lido_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -52,7 +52,7 @@ use super::mock_querier::{mock_dependencies as dependencies, WasmMockQuerier};
 use crate::math::decimal_division;
 use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE};
 use basset::airdrop::PairHandleMsg;
-use lido_terra_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
+use lido_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
 
 use basset::airdrop::ExecuteMsg::{FabricateANCClaim, FabricateMIRClaim};
 use basset::hub::Cw20HookMsg::Unbond;

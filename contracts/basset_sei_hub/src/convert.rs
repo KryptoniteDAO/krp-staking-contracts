@@ -98,10 +98,7 @@ pub fn convert_stsei_bsei(
         attr("action", "convert_stsei"),
         attr("from", sender),
         attr("bsei_exchange_rate", state.bsei_exchange_rate.to_string()),
-        attr(
-            "stsei_exchange_rate",
-            state.stsei_exchange_rate.to_string(),
-        ),
+        attr("stsei_exchange_rate", state.stsei_exchange_rate.to_string()),
         attr("stsei_amount", stsei_amount),
         attr("bsei_amount", bsei_mint_amount_with_fee),
     ]);
@@ -188,10 +185,7 @@ pub fn convert_bsei_stsei(
         attr("action", "convert_stsei"),
         attr("from", sender),
         attr("bsei_exchange_rate", state.bsei_exchange_rate.to_string()),
-        attr(
-            "stsei_exchange_rate",
-            state.stsei_exchange_rate.to_string(),
-        ),
+        attr("stsei_exchange_rate", state.stsei_exchange_rate.to_string()),
         attr("bsei_amount", bsei_amount),
         attr("stsei_amount", stsei_to_mint),
     ]);

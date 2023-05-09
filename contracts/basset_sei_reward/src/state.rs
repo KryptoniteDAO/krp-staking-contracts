@@ -26,7 +26,7 @@ pub const HOLDERS: Map<&[u8], Holder> = Map::new("holders");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner : CanonicalAddr,
+    pub owner: CanonicalAddr,
     pub hub_contract: CanonicalAddr,
     pub reward_denom: String,
 }
@@ -91,7 +91,8 @@ pub fn read_holders(
     limit: Option<u32>,
 ) -> StdResult<Vec<HolderResponse>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = calc_range_start(deps.api, start_after.map(Addr::unchecked))?.map(Bound::ExclusiveRaw);
+    let start =
+        calc_range_start(deps.api, start_after.map(Addr::unchecked))?.map(Bound::ExclusiveRaw);
 
     HOLDERS
         .range(deps.storage, start, None, Order::Ascending)

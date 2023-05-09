@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn increase_decrease_allowances() {
-     // let mut deps = mock_dependencies(&coins(2, "token"));
+        // let mut deps = mock_dependencies(&coins(2, "token"));
 
         let mut deps = mock_dependencies();
 

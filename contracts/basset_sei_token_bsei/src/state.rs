@@ -49,7 +49,7 @@ mod test {
 
     #[test]
     fn hub_legacy_compatibility() {
-       // let mut deps = mock_dependencies(&[]);
+        // let mut deps = mock_dependencies(&[]);
         let mut deps = mock_dependencies();
         store_hub(
             &mut deps.storage,

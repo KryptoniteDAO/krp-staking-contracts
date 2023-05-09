@@ -4,8 +4,8 @@
   "type": "object",
   "required": [
     "id",
-    "requested_bluna_with_fee",
-    "requested_stluna",
+    "requested_bsei_with_fee",
+    "requested_stsei",
     "requested_with_fee"
   ],
   "properties": {
@@ -14,10 +14,10 @@
       "format": "uint64",
       "minimum": 0.0
     },
-    "requested_bluna_with_fee": {
+    "requested_bsei_with_fee": {
       "$ref": "#/definitions/Uint128"
     },
-    "requested_stluna": {
+    "requested_stsei": {
       "$ref": "#/definitions/Uint128"
     },
     "requested_with_fee": {
