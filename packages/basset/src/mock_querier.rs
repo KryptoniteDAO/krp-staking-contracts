@@ -1,4 +1,4 @@
-use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_slice, to_binary, AllBalanceResponse, Api, BalanceResponse, BankQuery, CanonicalAddr,
     Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError,
@@ -9,24 +9,20 @@ use std::collections::HashMap;
 
 use crate::hub::Config;
 use schemars::JsonSchema;
+use sei_cosmwasm::{SeiQueryWrapper};
 use serde::{Deserialize, Serialize};
-use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
-
-pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = String::from(MOCK_CONTRACT_ADDR);
-    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
-        MockQuerier::new(&[(&contract_addr, contract_balance)]),
-        MockApi::default(),
-    );
+    let custom_querier: WasmMockQuerier =
+        WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
     OwnedDeps {
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: custom_querier,
+        custom_query_type: Default::default(),
     }
 }
 
@@ -54,20 +50,20 @@ pub(crate) fn caps_to_map(caps: &[(&String, &Uint128)]) -> HashMap<String, Uint1
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<TerraQueryWrapper>,
+    base: MockQuerier<SeiQueryWrapper>,
     tax_querier: TaxQuerier,
 }
 
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<SeiQueryWrapper> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
-                })
+                });
             }
         };
         self.handle_query(&request)
@@ -75,33 +71,11 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn handle_query(&self, request: &QueryRequest<SeiQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
-                if &TerraRoute::Treasury == route {
-                    match query_data {
-                        TerraQuery::TaxRate {} => {
-                            let res = TaxRateResponse {
-                                rate: self.tax_querier.rate,
-                            };
-                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        TerraQuery::TaxCap { denom } => {
-                            let cap = self
-                                .tax_querier
-                                .caps
-                                .get(denom)
-                                .copied()
-                                .unwrap_or_default();
-                            let res = TaxCapResponse { cap };
-                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        _ => panic!("DO NOT ENTER HERE"),
-                    }
-                } else {
-                    panic!("DO NOT ENTER HERE")
-                }
-            }
+            // QueryRequest::Custom(SeiQueryWrapper { route, query_data }) => {
+            //     panic!("DO NOT ENTER HERE")
+            // }
             QueryRequest::Wasm(WasmQuery::Raw {
                 contract_addr: _,
                 key,
@@ -113,20 +87,26 @@ impl WasmMockQuerier {
                     let config = Config {
                         creator: api.addr_canonicalize(&String::from("owner1")).unwrap(),
                         reward_dispatcher_contract: Some(
-                            api.addr_canonicalize(&String::from("reward")).unwrap(),
+                            api.addr_canonicalize(&String::from("reward_dispatcher"))
+                                .unwrap(),
                         ),
                         validators_registry_contract: Some(
                             api.addr_canonicalize(&String::from("validators")).unwrap(),
                         ),
-                        bluna_token_contract: Some(
-                            api.addr_canonicalize(&String::from("token")).unwrap(),
+                        bsei_token_contract: Some(
+                            api.addr_canonicalize(&String::from("bsei_token")).unwrap(),
                         ),
                         airdrop_registry_contract: Some(
                             api.addr_canonicalize(&String::from("airdrop")).unwrap(),
                         ),
-                        stluna_token_contract: Some(
-                            api.addr_canonicalize(&String::from("stluna_token"))
-                                .unwrap(),
+                        stable_contract: Some(
+                            api.addr_canonicalize(&String::from("stable")).unwrap(),
+                        ),
+                        stsei_token_contract: Some(
+                            api.addr_canonicalize(&String::from("stsei_token")).unwrap(),
+                        ),
+                        rewards_contract: Some(
+                            api.addr_canonicalize(&String::from("rewards")).unwrap(),
                         ),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
@@ -137,11 +117,11 @@ impl WasmMockQuerier {
             QueryRequest::Bank(BankQuery::AllBalances { address }) => {
                 if address == &String::from("reward") {
                     let mut coins: Vec<Coin> = vec![];
-                    let luna = Coin {
-                        denom: "uluna".to_string(),
+                    let sei = Coin {
+                        denom: "usei".to_string(),
                         amount: Uint128::new(1000u128),
                     };
-                    coins.push(luna);
+                    coins.push(sei);
                     let krt = Coin {
                         denom: "ukrt".to_string(),
                         amount: Uint128::new(1000u128),
@@ -177,7 +157,7 @@ pub struct TokenQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(base: MockQuerier<TerraQueryWrapper>, _api: A) -> Self {
+    pub fn new(base: MockQuerier<SeiQueryWrapper>) -> Self {
         WasmMockQuerier {
             base,
             tax_querier: TaxQuerier::default(),

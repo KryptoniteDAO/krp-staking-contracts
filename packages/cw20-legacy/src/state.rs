@@ -37,7 +37,7 @@ pub const ALLOWANCES: Map<(&[u8], &[u8]), AllowanceResponse> = Map::new("allowan
 mod test {
     use super::*;
 
-    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::testing::mock_dependencies_with_balance;
     use cosmwasm_std::{StdResult, Storage};
     use cosmwasm_storage::{singleton, singleton_read};
 
@@ -52,7 +52,7 @@ mod test {
 
     #[test]
     fn token_info_legacy_compatibility() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies_with_balance(&[]);
         store_token_info(
             &mut deps.storage,
             &TokenInfo {
