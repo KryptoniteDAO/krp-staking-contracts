@@ -30,6 +30,7 @@ cosmwasm-std = "1.0.0"
 schemars = "0.8.11"
 thiserror = { version = "1.0.37" }
 serde = { version = "1.0.147", default-features = false, features = ["derive"] }
+sei-cosmwasm = "0.4.10"
 
 [dev-dependencies]
 cosmwasm-vm = { version = "1.0.0" }

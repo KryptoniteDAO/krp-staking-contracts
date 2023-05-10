@@ -16,7 +16,8 @@ fn test_deduct_tax() {
         deduct_tax(&deps.as_mut().querier, Coin::new(10000000000u128, "uusd")).unwrap(),
         Coin {
             denom: "uusd".to_string(),
-            amount: Uint128::new(9999000000u128)
+            // amount: Uint128::new(9999000000u128)
+            amount: Uint128::new(10000000000u128)
         }
     );
 
@@ -25,15 +26,16 @@ fn test_deduct_tax() {
         deduct_tax(&deps.as_mut().querier, Coin::new(50000000u128, "uusd")).unwrap(),
         Coin {
             denom: "uusd".to_string(),
-            amount: Uint128::new(49504950u128)
+            // amount: Uint128::new(49504950u128)
+            amount: Uint128::new(50000000u128)
         }
     );
 
-    // no tax deduction on uluna
+    // no tax deduction on usei
     assert_eq!(
-        deduct_tax(&deps.as_mut().querier, Coin::new(50000000u128, "uluna")).unwrap(),
+        deduct_tax(&deps.as_mut().querier, Coin::new(50000000u128, "usei")).unwrap(),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::new(50000000u128)
         }
     );

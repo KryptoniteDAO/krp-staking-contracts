@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api, BalanceResponse,
     BankQuery, Coin, ContractResult, CustomQuery, Decimal, Empty, FullDelegation, OwnedDeps,
@@ -29,7 +29,6 @@ use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg};
 use serde::de::DeserializeOwned;
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 
-pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 pub const VALIDATORS_REGISTRY: &str = "validators_registry";
 
 pub fn mock_dependencies(
