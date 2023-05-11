@@ -324,7 +324,6 @@ pub struct MigrateMsg {
     pub reward_dispatcher_contract: String,
     pub validators_registry_contract: String,
     pub stsei_token_contract: String,
-    pub stable_contract: String,
     pub rewards_contract: String,
 }
 
