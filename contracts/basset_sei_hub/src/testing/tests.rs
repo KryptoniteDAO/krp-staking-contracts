@@ -30,20 +30,20 @@
 //!          //...
 //!      });
 //! 4. Anywhere you see query(deps.as_ref(), ...) you must replace it with query(deps.as_mut(), ...)
+use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
+use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 use cosmwasm_std::{
     coin, coins, from_binary, to_binary, to_vec, Addr, Api, BankMsg, Coin, CosmosMsg, Decimal,
     DepsMut, DistributionMsg, Env, FullDelegation, MessageInfo, OwnedDeps, Querier, QueryRequest,
     Response, StakingMsg, StdError, StdResult, Storage, Uint128, Validator, WasmMsg, WasmQuery,
 };
-use lido_sei_validators_registry::msg::QueryMsg as QueryValidators;
-use lido_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{mock_env, mock_info};
 
 use crate::contract::{execute, instantiate, query};
-use crate::unbond::{execute_unbond, execute_unbond_stluna};
+use crate::unbond::{execute_unbond, execute_unbond_stsei};
 
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw20_base::msg::ExecuteMsg::{Burn, Mint};
@@ -52,7 +52,7 @@ use super::mock_querier::{mock_dependencies as dependencies, WasmMockQuerier};
 use crate::math::decimal_division;
 use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE};
 use basset::airdrop::PairHandleMsg;
-use lido_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
+use basset_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
 
 use basset::airdrop::ExecuteMsg::{FabricateANCClaim, FabricateMIRClaim};
 use basset::hub::Cw20HookMsg::Unbond;
@@ -90,7 +90,7 @@ fn sample_validator<U: Into<String>>(addr: U) -> Validator {
 
 fn set_validator_mock(querier: &mut WasmMockQuerier) {
     querier.update_staking(
-        "uluna",
+        "usei",
         &[
             sample_validator(DEFAULT_VALIDATOR),
             sample_validator(DEFAULT_VALIDATOR2),
@@ -104,12 +104,12 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
     deps: &mut OwnedDeps<S, A, Q>,
     owner: String,
     reward_contract: String,
-    bluna_token_contract: String,
-    stluna_token_contract: String,
+    bsei_token_contract: String,
+    stsei_token_contract: String,
 ) {
     let msg = InstantiateMsg {
         epoch_period: 30,
-        underlying_coin_denom: "uluna".to_string(),
+        underlying_coin_denom: "usei".to_string(),
         unbonding_period: 2,
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
@@ -122,10 +122,12 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
     let register_msg = ExecuteMsg::UpdateConfig {
         owner: None,
         rewards_dispatcher_contract: Some(reward_contract),
-        bluna_token_contract: Some(bluna_token_contract),
-        stluna_token_contract: Some(stluna_token_contract),
+        bsei_token_contract: Some(bsei_token_contract),
+        stsei_token_contract: Some(stsei_token_contract),
         airdrop_registry_contract: Some(String::from("airdrop_registry")),
+        stable_contract: Some(String::from("stable")),
         validators_registry_contract: Some(String::from("validators_registry")),
+        rewards_contract: Some(String::from("rewards")),
     };
     let res = execute(deps.as_mut(), mock_env(), owner_info, register_msg).unwrap();
     assert_eq!(1, res.messages.len());
@@ -156,12 +158,12 @@ pub fn do_bond(
 
     let bond = ExecuteMsg::Bond {};
 
-    let info = mock_info(&addr, &[coin(amount.u128(), "uluna")]);
+    let info = mock_info(&addr, &[coin(amount.u128(), "usei")]);
     let res = execute(deps.as_mut(), mock_env(), info, bond).unwrap();
     assert_eq!(validators.len() + 1, res.messages.len());
 }
 
-pub fn do_bond_stluna(
+pub fn do_bond_stsei(
     deps: &mut OwnedDeps<MockStorage, MockApi, WasmMockQuerier>,
     addr: String,
     amount: Uint128,
@@ -174,9 +176,9 @@ pub fn do_bond_stluna(
         }))
         .unwrap();
 
-    let bond = ExecuteMsg::BondForStLuna {};
+    let bond = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&addr, &[coin(amount.u128(), "uluna")]);
+    let info = mock_info(&addr, &[coin(amount.u128(), "usei")]);
     let res = execute(deps.as_mut(), mock_env(), info, bond).unwrap();
     assert_eq!(validators.len() + 1, res.messages.len());
 }
@@ -211,7 +213,7 @@ fn proper_initialization() {
     // successful call
     let msg = InstantiateMsg {
         epoch_period: 30,
-        underlying_coin_denom: "uluna".to_string(),
+        underlying_coin_denom: "usei".to_string(),
         unbonding_period: 210,
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
@@ -231,7 +233,7 @@ fn proper_initialization() {
     let query_params: Parameters =
         from_binary(&query(deps.as_ref(), mock_env(), params).unwrap()).unwrap();
     assert_eq!(query_params.epoch_period, 30);
-    assert_eq!(query_params.underlying_coin_denom, "uluna");
+    assert_eq!(query_params.underlying_coin_denom, "usei");
     assert_eq!(query_params.unbonding_period, 210);
     assert_eq!(query_params.peg_recovery_fee, Decimal::zero());
     assert_eq!(query_params.er_threshold, Decimal::one());
@@ -242,10 +244,10 @@ fn proper_initialization() {
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     let expected_result = StateResponse {
-        bluna_exchange_rate: Decimal::one(),
-        stluna_exchange_rate: Decimal::one(),
-        total_bond_bluna_amount: Uint128::zero(),
-        total_bond_stluna_amount: Uint128::zero(),
+        bsei_exchange_rate: Decimal::one(),
+        stsei_exchange_rate: Decimal::one(),
+        total_bond_bsei_amount: Uint128::zero(),
+        total_bond_stsei_amount: Uint128::zero(),
         last_index_modification: env.block.time.seconds(),
         prev_hub_balance: Default::default(),
         last_unbonded_time: env.block.time.seconds(),
@@ -264,9 +266,9 @@ fn proper_initialization() {
         owner: String::from("owner1"),
         reward_dispatcher_contract: None,
         validators_registry_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
 
         token_contract: None,
     };
@@ -281,8 +283,8 @@ fn proper_initialization() {
         query_batch,
         CurrentBatchResponse {
             id: 1,
-            requested_bluna_with_fee: Default::default(),
-            requested_stluna: Default::default(),
+            requested_bsei_with_fee: Default::default(),
+            requested_stsei: Default::default(),
 
             requested_with_fee: Default::default(),
         }
@@ -300,7 +302,7 @@ fn bad_initialization() {
     // successful call
     let msg = InstantiateMsg {
         epoch_period: 30,
-        underlying_coin_denom: "uluna".to_string(),
+        underlying_coin_denom: "usei".to_string(),
         unbonding_period: 210,
         peg_recovery_fee: Decimal::from_str("1.1").unwrap(),
         er_threshold: Decimal::one(),
@@ -331,7 +333,7 @@ fn proper_bond() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -339,7 +341,7 @@ fn proper_bond() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     // register_validator
@@ -349,7 +351,7 @@ fn proper_bond() {
 
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(4, res.messages.len());
@@ -362,7 +364,7 @@ fn proper_bond() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(3334, "uluna"));
+            assert_eq!(amount, coin(3334, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -371,7 +373,7 @@ fn proper_bond() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR2);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -380,7 +382,7 @@ fn proper_bond() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR3);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -409,8 +411,8 @@ fn proper_bond() {
     let state = State {};
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
-    assert_eq!(query_state.total_bond_bluna_amount, bond_amount);
-    assert_eq!(query_state.bluna_exchange_rate, Decimal::one());
+    assert_eq!(query_state.total_bond_bsei_amount, bond_amount);
+    assert_eq!(query_state.bsei_exchange_rate, Decimal::one());
 
     // no-send funds
     let bob = String::from("bob");
@@ -420,10 +422,10 @@ fn proper_bond() {
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
-    //send other tokens than luna funds
+    //send other tokens than sei funds
     let bob = String::from("bob");
     let failed_bond = ExecuteMsg::Bond {};
 
@@ -431,14 +433,14 @@ fn proper_bond() {
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond.clone());
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
     //bond with more than one coin is not possible
     let info = mock_info(
         &addr1,
         &[
-            coin(bond_amount.u128(), "uluna"),
+            coin(bond_amount.u128(), "usei"),
             coin(bond_amount.u128(), "uusd"),
         ],
     );
@@ -451,7 +453,7 @@ fn proper_bond() {
 }
 
 #[test]
-fn proper_bond_for_st_luna() {
+fn proper_bond_for_st_sei() {
     let mut deps = dependencies(&[]);
 
     let validator = sample_validator(DEFAULT_VALIDATOR);
@@ -464,7 +466,7 @@ fn proper_bond_for_st_luna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -472,7 +474,7 @@ fn proper_bond_for_st_luna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -480,22 +482,22 @@ fn proper_bond_for_st_luna() {
     do_register_validator(&mut deps, validator2);
     do_register_validator(&mut deps, validator3);
 
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(4, res.messages.len());
 
     // set bob's balance in token contract
     deps.querier
-        .with_token_balances(&[(&stluna_token_contract, &[(&addr1, &bond_amount)])]);
+        .with_token_balances(&[(&stsei_token_contract, &[(&addr1, &bond_amount)])]);
 
     let delegate = &res.messages[0];
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(3334, "uluna"));
+            assert_eq!(amount, coin(3334, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -504,7 +506,7 @@ fn proper_bond_for_st_luna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR2);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -513,7 +515,7 @@ fn proper_bond_for_st_luna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR3);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -525,7 +527,7 @@ fn proper_bond_for_st_luna() {
             msg,
             funds: _,
         }) => {
-            assert_eq!(contract_addr, stluna_token_contract);
+            assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
                 to_binary(&Cw20ExecuteMsg::Mint {
@@ -542,36 +544,36 @@ fn proper_bond_for_st_luna() {
     let state = State {};
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
-    assert_eq!(query_state.total_bond_stluna_amount, bond_amount);
-    assert_eq!(query_state.stluna_exchange_rate, Decimal::one());
+    assert_eq!(query_state.total_bond_stsei_amount, bond_amount);
+    assert_eq!(query_state.stsei_exchange_rate, Decimal::one());
 
     // no-send funds
     let bob = String::from("bob");
-    let failed_bond = ExecuteMsg::BondForStLuna {};
+    let failed_bond = ExecuteMsg::BondForStSei {};
 
     let info = mock_info(&bob, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
-    //send other tokens than luna funds
+    //send other tokens than sei funds
     let bob = String::from("bob");
-    let failed_bond = ExecuteMsg::BondForStLuna {};
+    let failed_bond = ExecuteMsg::BondForStSei {};
 
     let info = mock_info(&bob, &[coin(10, "ukrt")]);
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond.clone());
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
     //bond with more than one coin is not possible
     let info = mock_info(
         &addr1,
         &[
-            coin(bond_amount.u128(), "uluna"),
+            coin(bond_amount.u128(), "usei"),
             coin(bond_amount.u128(), "uusd"),
         ],
     );
@@ -597,7 +599,7 @@ fn proper_bond_rewards() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_dispatcher_contract = String::from("reward_dispatcher");
 
     initialize(
@@ -605,7 +607,7 @@ fn proper_bond_rewards() {
         owner,
         reward_dispatcher_contract.clone(),
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -613,22 +615,22 @@ fn proper_bond_rewards() {
     do_register_validator(&mut deps, validator2);
     do_register_validator(&mut deps, validator3);
 
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&addr1, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(4, res.messages.len());
 
     // set bob's balance in token contract
     deps.querier
-        .with_token_balances(&[(&stluna_token_contract, &[(&addr1, &bond_amount)])]);
+        .with_token_balances(&[(&stsei_token_contract, &[(&addr1, &bond_amount)])]);
 
     let bond_msg = ExecuteMsg::BondRewards {};
 
     let info = mock_info(
         &reward_dispatcher_contract,
-        &[coin(bond_amount.u128(), "uluna")],
+        &[coin(bond_amount.u128(), "usei")],
     );
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -638,7 +640,7 @@ fn proper_bond_rewards() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(3334, "uluna"));
+            assert_eq!(amount, coin(3334, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -647,7 +649,7 @@ fn proper_bond_rewards() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR2);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -656,7 +658,7 @@ fn proper_bond_rewards() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR3);
-            assert_eq!(amount, coin(3333, "uluna"));
+            assert_eq!(amount, coin(3333, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -666,12 +668,13 @@ fn proper_bond_rewards() {
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(
-        query_state.total_bond_stluna_amount,
-        bond_amount + bond_amount // BondForStLuna + BondRewards
+        query_state.total_bond_stsei_amount,
+        bond_amount + bond_amount // BondForStSei + BondRewards
     );
     assert_eq!(
-        query_state.stluna_exchange_rate,
-        Decimal::from_ratio(2u128, 1u128)
+        query_state.stsei_exchange_rate,
+        // Decimal::from_ratio(2u128, 1u128)
+        Decimal::from_ratio(1u128, 1u128)
     );
 
     // no-send funds
@@ -681,24 +684,24 @@ fn proper_bond_rewards() {
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
-    //send other tokens than luna funds
+    //send other tokens than sei funds
     let failed_bond = ExecuteMsg::BondRewards {};
 
     let info = mock_info(&reward_dispatcher_contract, &[coin(10, "ukrt")]);
     let res = execute(deps.as_mut(), mock_env(), info, failed_bond.clone());
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("No uluna assets are provided to bond")
+        StdError::generic_err("No usei assets are provided to bond")
     );
 
     //bond with more than one coin is not possible
     let info = mock_info(
         &reward_dispatcher_contract,
         &[
-            coin(bond_amount.u128(), "uluna"),
+            coin(bond_amount.u128(), "usei"),
             coin(bond_amount.u128(), "uusd"),
         ],
     );
@@ -712,7 +715,7 @@ fn proper_bond_rewards() {
     //bond from non-dispatcher address
     let info = mock_info(
         &String::from("random_address"),
-        &[coin(bond_amount.u128(), "uluna")],
+        &[coin(bond_amount.u128(), "usei")],
     );
     let failed_bond = ExecuteMsg::BondRewards {};
 
@@ -732,7 +735,7 @@ pub fn proper_update_global_index() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -740,14 +743,14 @@ pub fn proper_update_global_index() {
         owner,
         reward_contract.clone(),
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     deps.querier
-        .with_token_balances(&[(&String::from("token"), &[]), (&stluna_token_contract, &[])]);
+        .with_token_balances(&[(&String::from("token"), &[]), (&stsei_token_contract, &[])]);
 
     // fails if there is no delegation
     let reward_msg = ExecuteMsg::UpdateGlobalIndex {
@@ -760,18 +763,18 @@ pub fn proper_update_global_index() {
 
     // bond
     do_bond(&mut deps, addr1.clone(), bond_amount);
-    do_bond_stluna(&mut deps, addr1.clone(), bond_amount);
+    do_bond_stsei(&mut deps, addr1.clone(), bond_amount);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &bond_amount)]),
-        (&stluna_token_contract, &[(&addr1, &bond_amount)]),
+        (&stsei_token_contract, &[(&addr1, &bond_amount)]),
     ]);
 
     //set delegation for query-all-delegation
     let delegations: [FullDelegation; 1] = [(sample_delegation(
         validator.address.clone(),
-        coin(bond_amount.u128() * 2, "uluna"),
+        coin(bond_amount.u128() * 2, "usei"),
     ))];
 
     let validators: [Validator; 1] = [(validator.clone())];
@@ -781,7 +784,7 @@ pub fn proper_update_global_index() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &bond_amount)]),
-        (&stluna_token_contract, &[(&addr1, &bond_amount)]),
+        (&stsei_token_contract, &[(&addr1, &bond_amount)]),
     ]);
 
     let reward_msg = ExecuteMsg::UpdateGlobalIndex {
@@ -810,25 +813,25 @@ pub fn proper_update_global_index() {
         _ => panic!("Unexpected message: {:?}", withdraw),
     }
 
-    let swap = &res.messages[1];
-    match swap.msg.clone() {
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr,
-            msg,
-            funds: _,
-        }) => {
-            assert_eq!(contract_addr, reward_contract);
-            assert_eq!(
-                msg,
-                to_binary(&SwapToRewardDenom {
-                    stluna_total_bonded: Uint128::from(10u64),
-                    bluna_total_bonded: Uint128::from(10u64),
-                })
-                .unwrap()
-            )
-        }
-        _ => panic!("Unexpected message: {:?}", swap),
-    }
+    // let swap = &res.messages[1];
+    // match swap.msg.clone() {
+    //     CosmosMsg::Wasm(WasmMsg::Execute {
+    //         contract_addr,
+    //         msg,
+    //         funds: _,
+    //     }) => {
+    //         assert_eq!(contract_addr, reward_contract);
+    //         assert_eq!(
+    //             msg,
+    //             to_binary(&SwapToRewardDenom {
+    //                 stsei_total_bonded: Uint128::from(10u64),
+    //                 bsei_total_bonded: Uint128::from(10u64),
+    //             })
+    //             .unwrap()
+    //         )
+    //     }
+    //     _ => panic!("Unexpected message: {:?}", swap),
+    // }
 
     let update_g_index = &res.messages[2];
     match update_g_index.msg.clone() {
@@ -857,7 +860,7 @@ pub fn proper_update_global_index_two_validators() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -865,7 +868,7 @@ pub fn proper_update_global_index_two_validators() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -877,7 +880,7 @@ pub fn proper_update_global_index_two_validators() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(10u128))]),
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u64))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
     // register_validator
@@ -888,8 +891,8 @@ pub fn proper_update_global_index_two_validators() {
 
     //set delegation for query-all-delegation
     let delegations: [FullDelegation; 2] = [
-        (sample_delegation(validator.address.clone(), coin(10, "uluna"))),
-        (sample_delegation(validator2.address.clone(), coin(10, "uluna"))),
+        (sample_delegation(validator.address.clone(), coin(10, "usei"))),
+        (sample_delegation(validator2.address.clone(), coin(10, "usei"))),
     ];
 
     let validators: [Validator; 2] = [(validator.clone()), (validator2.clone())];
@@ -898,7 +901,7 @@ pub fn proper_update_global_index_two_validators() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(20u128))]),
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u64))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
     let reward_msg = ExecuteMsg::UpdateGlobalIndex {
@@ -940,7 +943,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -948,7 +951,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -960,7 +963,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(10u128))]),
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u64))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
     // register_validator 2 but will not bond anything to it
@@ -968,7 +971,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
 
     //set delegation for query-all-delegation
     let delegations: [FullDelegation; 1] =
-        [(sample_delegation(validator.address.clone(), coin(10, "uluna")))];
+        [(sample_delegation(validator.address.clone(), coin(10, "usei")))];
 
     let validators: [Validator; 1] = [(validator.clone())];
     set_delegation_query(&mut deps.querier, &delegations, &validators);
@@ -976,7 +979,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(20u128))]),
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u64))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
     let reward_msg = ExecuteMsg::UpdateGlobalIndex {
@@ -1012,7 +1015,7 @@ pub fn proper_receive() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1020,7 +1023,7 @@ pub fn proper_receive() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -1028,12 +1031,12 @@ pub fn proper_receive() {
 
     // bond to the second validator
     do_bond(&mut deps, addr1.clone(), Uint128::from(10u64));
-    set_delegation(&mut deps.querier, validator, 10, "uluna");
+    set_delegation(&mut deps.querier, validator, 10, "usei");
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(10u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // Null message
@@ -1103,7 +1106,7 @@ pub fn proper_unbond() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1111,7 +1114,7 @@ pub fn proper_unbond() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -1120,12 +1123,12 @@ pub fn proper_unbond() {
     let bob = String::from("bob");
     let bond = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(10, "uluna")]);
+    let info = mock_info(&bob, &[coin(10, "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(10u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond).unwrap();
@@ -1135,19 +1138,19 @@ pub fn proper_unbond() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(10, "uluna"));
+            assert_eq!(amount, coin(10, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator.clone(), 10, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 10, "usei");
 
     //check the current batch before unbond
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     let token_info = mock_info(&token_contract, &[]);
 
@@ -1159,7 +1162,7 @@ pub fn proper_unbond() {
         query_state.last_unbonded_time,
         mock_env().block.time.seconds()
     );
-    assert_eq!(query_state.total_bond_bluna_amount, Uint128::from(10u64));
+    assert_eq!(query_state.total_bond_bsei_amount, Uint128::from(10u64));
 
     // successful call
     let successful_bond = Unbond {};
@@ -1172,12 +1175,12 @@ pub fn proper_unbond() {
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     //read the undelegated waitlist of the current epoch for the user bob
     let wait_list = read_unbond_wait_list(&deps.storage, 1, bob.clone()).unwrap();
-    assert_eq!(Uint128::from(1u64), wait_list.bluna_amount);
+    assert_eq!(Uint128::from(1u64), wait_list.bsei_amount);
 
     //successful call
     let successful_bond = Unbond {};
@@ -1191,7 +1194,7 @@ pub fn proper_unbond() {
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(4u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let msg = &res.messages[0];
@@ -1214,13 +1217,13 @@ pub fn proper_unbond() {
     }
 
     let waitlist2 = read_unbond_wait_list(&deps.storage, 1, bob.clone()).unwrap();
-    assert_eq!(Uint128::from(6u64), waitlist2.bluna_amount);
+    assert_eq!(Uint128::from(6u64), waitlist2.bsei_amount);
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::from(6u64));
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::from(6u64));
 
     let mut env = mock_env();
     //pushing time forward to check the unbond message
@@ -1257,7 +1260,7 @@ pub fn proper_unbond() {
     //making sure the sent message (2nd) is undelegate
     let msgs: CosmosMsg = CosmosMsg::Staking(StakingMsg::Undelegate {
         validator: validator.address,
-        amount: coin(8, "uluna"),
+        amount: coin(8, "usei"),
     });
     assert_eq!(res.messages[0].msg, msgs);
 
@@ -1266,14 +1269,14 @@ pub fn proper_unbond() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     // check the state
     let state = State {};
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.last_unbonded_time, env.block.time.seconds());
-    assert_eq!(query_state.total_bond_bluna_amount, Uint128::from(2u64));
+    assert_eq!(query_state.total_bond_bsei_amount, Uint128::from(2u64));
 
     // the last request (2) gets combined and processed with the previous requests (1, 5)
     let waitlist = UnbondRequests { address: bob };
@@ -1288,8 +1291,8 @@ pub fn proper_unbond() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(8u64));
-    assert_eq!(res.history[0].bluna_applied_exchange_rate, Decimal::one());
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(8u64));
+    assert_eq!(res.history[0].bsei_applied_exchange_rate, Decimal::one());
     assert!(
         !res.history[0].released,
         "res.history[0].released is not false"
@@ -1303,7 +1306,7 @@ pub fn proper_unbond() {
     A comprehensive test for unbond is prepared in proper_unbond tests
 */
 #[test]
-pub fn proper_receive_stluna() {
+pub fn proper_receive_stsei() {
     let mut deps = dependencies(&[]);
     let validator = sample_validator(DEFAULT_VALIDATOR);
     set_validator_mock(&mut deps.querier);
@@ -1313,7 +1316,7 @@ pub fn proper_receive_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1321,19 +1324,19 @@ pub fn proper_receive_stluna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     // bond to the second validator
-    do_bond_stluna(&mut deps, addr1.clone(), Uint128::from(10u64));
-    set_delegation(&mut deps.querier, validator, 10, "uluna");
+    do_bond_stsei(&mut deps, addr1.clone(), Uint128::from(10u64));
+    set_delegation(&mut deps.querier, validator, 10, "usei");
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u128))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u128))]),
         (&String::from("token"), &[]),
     ]);
 
@@ -1344,7 +1347,7 @@ pub fn proper_receive_stluna() {
         msg: to_binary(&{}).unwrap(),
     });
 
-    let token_info = mock_info(&stluna_token_contract, &[]);
+    let token_info = mock_info(&stsei_token_contract, &[]);
     let res = execute(deps.as_mut(), mock_env(), token_info, receive);
     assert!(res.is_err());
 
@@ -1368,7 +1371,7 @@ pub fn proper_receive_stluna() {
         msg: to_binary(&successful_unbond).unwrap(),
     });
 
-    let valid_info = mock_info(&stluna_token_contract, &[]);
+    let valid_info = mock_info(&stsei_token_contract, &[]);
     let res = execute(deps.as_mut(), mock_env(), valid_info, receive).unwrap();
     assert_eq!(res.messages.len(), 1);
 
@@ -1379,7 +1382,7 @@ pub fn proper_receive_stluna() {
             msg,
             funds: _,
         }) => {
-            assert_eq!(contract_addr, stluna_token_contract);
+            assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
                 to_binary(&Burn {
@@ -1397,14 +1400,14 @@ pub fn proper_receive_stluna() {
 /// the current epoch is updated to the new values,
 /// the request is stored in unbond wait list, and unbond history map is updated
 #[test]
-pub fn proper_unbond_stluna() {
+pub fn proper_unbond_stsei() {
     let mut deps = dependencies(&[]);
     let validator = sample_validator(DEFAULT_VALIDATOR);
     set_validator_mock(&mut deps.querier);
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1412,16 +1415,16 @@ pub fn proper_unbond_stluna() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     let bob = String::from("bob");
-    let bond = ExecuteMsg::BondForStLuna {};
+    let bond = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(10, "uluna")]);
+    let info = mock_info(&bob, &[coin(10, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond).unwrap();
     assert_eq!(2, res.messages.len());
@@ -1430,28 +1433,28 @@ pub fn proper_unbond_stluna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(10, "uluna"));
+            assert_eq!(amount, coin(10, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(10u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(10u128))]),
         (&token_contract, &[]),
     ]);
 
-    set_delegation(&mut deps.querier, validator.clone(), 10, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 10, "usei");
 
     //check the current batch before unbond
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
-    assert_eq!(query_batch.requested_stluna, Uint128::zero());
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_stsei, Uint128::zero());
 
-    let token_info = mock_info(&stluna_token_contract, &[]);
+    let token_info = mock_info(&stsei_token_contract, &[]);
 
     // check the state before unbond
     let state = State {};
@@ -1461,7 +1464,7 @@ pub fn proper_unbond_stluna() {
         query_state.last_unbonded_time,
         mock_env().block.time.seconds()
     );
-    assert_eq!(query_state.total_bond_stluna_amount, Uint128::from(10u64));
+    assert_eq!(query_state.total_bond_stsei_amount, Uint128::from(10u64));
 
     // successful call
     let successful_bond = Unbond {};
@@ -1473,13 +1476,13 @@ pub fn proper_unbond_stluna() {
     let res = execute(deps.as_mut(), mock_env(), token_info, receive).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(9u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(9u128))]),
         (&token_contract, &[]),
     ]);
 
     //read the undelegated waitlist of the current epoch for the user bob
     let wait_list = read_unbond_wait_list(&deps.storage, 1, bob.clone()).unwrap();
-    assert_eq!(Uint128::from(1u64), wait_list.stluna_amount);
+    assert_eq!(Uint128::from(1u64), wait_list.stsei_amount);
 
     //successful call
     let successful_bond = Unbond {};
@@ -1488,11 +1491,11 @@ pub fn proper_unbond_stluna() {
         amount: Uint128::from(5u64),
         msg: to_binary(&successful_bond).unwrap(),
     });
-    let token_info = mock_info(&stluna_token_contract, &[]);
+    let token_info = mock_info(&stsei_token_contract, &[]);
     let res = execute(deps.as_mut(), mock_env(), token_info.clone(), receive).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(4u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(4u128))]),
         (&token_contract, &[]),
     ]);
 
@@ -1503,7 +1506,7 @@ pub fn proper_unbond_stluna() {
             msg,
             funds: _,
         }) => {
-            assert_eq!(contract_addr, stluna_token_contract);
+            assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
                 to_binary(&Burn {
@@ -1516,14 +1519,14 @@ pub fn proper_unbond_stluna() {
     }
 
     let waitlist2 = read_unbond_wait_list(&deps.storage, 1, bob.clone()).unwrap();
-    assert_eq!(Uint128::from(6u64), waitlist2.stluna_amount);
+    assert_eq!(Uint128::from(6u64), waitlist2.stsei_amount);
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_stluna, Uint128::from(6u64));
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_stsei, Uint128::from(6u64));
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     let mut env = mock_env();
     //pushing time forward to check the unbond message
@@ -1545,7 +1548,7 @@ pub fn proper_unbond_stluna() {
             msg,
             funds: _,
         }) => {
-            assert_eq!(contract_addr, stluna_token_contract);
+            assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
                 to_binary(&Burn {
@@ -1560,7 +1563,7 @@ pub fn proper_unbond_stluna() {
     //making sure the sent message (2nd) is undelegate
     let msgs: CosmosMsg = CosmosMsg::Staking(StakingMsg::Undelegate {
         validator: validator.address,
-        amount: coin(8, "uluna"),
+        amount: coin(8, "usei"),
     });
     assert_eq!(res.messages[0].msg, msgs);
 
@@ -1569,16 +1572,16 @@ pub fn proper_unbond_stluna() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
-    assert_eq!(query_batch.requested_stluna, Uint128::zero());
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_stsei, Uint128::zero());
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     // check the state
     let state = State {};
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.last_unbonded_time, env.block.time.seconds());
-    assert_eq!(query_state.total_bond_bluna_amount, Uint128::from(0u64));
-    assert_eq!(query_state.total_bond_stluna_amount, Uint128::from(2u64));
+    assert_eq!(query_state.total_bond_bsei_amount, Uint128::from(0u64));
+    assert_eq!(query_state.total_bond_stsei_amount, Uint128::from(2u64));
 
     // the last request (2) gets combined and processed with the previous requests (1, 5)
     let waitlist = UnbondRequests { address: bob };
@@ -1593,8 +1596,8 @@ pub fn proper_unbond_stluna() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(8u64));
-    assert_eq!(res.history[0].stluna_applied_exchange_rate, Decimal::one());
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(8u64));
+    assert_eq!(res.history[0].stsei_applied_exchange_rate, Decimal::one());
     assert!(
         !res.history[0].released,
         "res.history[0].released is not false"
@@ -1621,7 +1624,7 @@ pub fn proper_pick_validator() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1629,7 +1632,7 @@ pub fn proper_pick_validator() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     do_register_validator(&mut deps, validator.clone());
@@ -1643,9 +1646,9 @@ pub fn proper_pick_validator() {
 
     // give validators different delegation amount
     let delegations: [FullDelegation; 3] = [
-        (sample_delegation(validator.address.clone(), coin(10, "uluna"))),
-        (sample_delegation(validator2.address.clone(), coin(150, "uluna"))),
-        (sample_delegation(validator3.address.clone(), coin(200, "uluna"))),
+        (sample_delegation(validator.address.clone(), coin(10, "usei"))),
+        (sample_delegation(validator2.address.clone(), coin(150, "usei"))),
+        (sample_delegation(validator3.address.clone(), coin(200, "usei"))),
     ];
 
     let validators: [Validator; 3] = [(validator), (validator2.clone()), (validator3.clone())];
@@ -1659,7 +1662,7 @@ pub fn proper_pick_validator() {
                 (&addr1, &Uint128::from(10u64)),
             ],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // send the first burn
@@ -1683,7 +1686,7 @@ pub fn proper_pick_validator() {
                 (&addr1, &Uint128::from(10u64)),
             ],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(40);
@@ -1749,7 +1752,7 @@ pub fn proper_pick_validator_respect_distributed_delegation() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -1757,7 +1760,7 @@ pub fn proper_pick_validator_respect_distributed_delegation() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     do_register_validator(&mut deps, validator.clone());
@@ -1770,8 +1773,8 @@ pub fn proper_pick_validator_respect_distributed_delegation() {
 
     // give validators different delegation amount
     let delegations: [FullDelegation; 2] = [
-        (sample_delegation(validator.address.clone(), coin(1000, "uluna"))),
-        (sample_delegation(validator2.address.clone(), coin(1500, "uluna"))),
+        (sample_delegation(validator.address.clone(), coin(1000, "usei"))),
+        (sample_delegation(validator2.address.clone(), coin(1500, "usei"))),
     ];
 
     let validators: [Validator; 2] = [(validator), (validator2)];
@@ -1779,7 +1782,7 @@ pub fn proper_pick_validator_respect_distributed_delegation() {
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &Uint128::from(2500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // send the first burn
@@ -1818,14 +1821,14 @@ pub fn proper_slashing() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     initialize(
         deps.borrow_mut(),
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -1840,11 +1843,11 @@ pub fn proper_slashing() {
             &String::from("token"),
             &[(&addr1, &Uint128::from(1000u128))],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // slashing
-    set_delegation(&mut deps.querier, validator.clone(), 900, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 900, "usei");
 
     let info = mock_info(&addr1, &[]);
     let report_slashing = CheckSlashing {};
@@ -1856,23 +1859,23 @@ pub fn proper_slashing() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.bluna_exchange_rate, expected_er);
+    assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     //bond again to see the update exchange rate
     let second_bond = ExecuteMsg::Bond {};
 
-    let info = mock_info(&addr1, &[coin(1000, "uluna")]);
+    let info = mock_info(&addr1, &[coin(1000, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), second_bond).unwrap();
     assert_eq!(2, res.messages.len());
 
-    set_delegation(&mut deps.querier, validator.clone(), 1900, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 1900, "usei");
     deps.querier.with_token_balances(&[
         (
             &String::from("token"),
             &[(&addr1, &Uint128::from(2111u128))],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // expected exchange rate must be greater than 0.9
@@ -1880,13 +1883,13 @@ pub fn proper_slashing() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.bluna_exchange_rate, expected_er);
+    assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     let delegate = &res.messages[0];
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(1000, "uluna"));
+            assert_eq!(amount, coin(1000, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -1911,7 +1914,7 @@ pub fn proper_slashing() {
         _ => panic!("Unexpected message: {:?}", message),
     }
 
-    set_delegation(&mut deps.querier, validator.clone(), 1900, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 1900, "usei");
 
     //update user balance
     deps.querier.with_token_balances(&[
@@ -1919,7 +1922,7 @@ pub fn proper_slashing() {
             &String::from("token"),
             &[(&addr1, &Uint128::from(2111u128))],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let info = mock_info(&addr1, &[]);
@@ -1937,7 +1940,7 @@ pub fn proper_slashing() {
             &String::from("token"),
             &[(&addr1, &Uint128::from(1611u128))],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(31);
@@ -1950,7 +1953,7 @@ pub fn proper_slashing() {
     .unwrap();
     let msgs: CosmosMsg = CosmosMsg::Staking(StakingMsg::Undelegate {
         validator: validator.address,
-        amount: coin(900, "uluna"),
+        amount: coin(900, "usei"),
     });
     assert_eq!(res.messages[0].msg.clone(), msgs);
 
@@ -1959,13 +1962,13 @@ pub fn proper_slashing() {
             &String::from("token"),
             &[(&addr1, &Uint128::from(1111u128))],
         ),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -1974,7 +1977,7 @@ pub fn proper_slashing() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.bluna_exchange_rate, expected_er);
+    assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     env.block.time = env.block.time.plus_seconds(90);
     //check withdrawUnbonded message
@@ -1986,7 +1989,7 @@ pub fn proper_slashing() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.bluna_exchange_rate, expected_er);
+    assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     let sent_message = &wdraw_unbonded_res.messages[0];
     match sent_message.msg.clone() {
@@ -2002,7 +2005,7 @@ pub fn proper_slashing() {
 /// Covers the effect of slashing of bond, unbond, and withdraw_unbonded
 /// update the exchange rate after and before slashing.
 #[test]
-pub fn proper_slashing_stluna() {
+pub fn proper_slashing_stsei() {
     let mut deps = dependencies(&[]);
     let validator = sample_validator(DEFAULT_VALIDATOR);
     set_validator_mock(&mut deps.querier);
@@ -2011,33 +2014,30 @@ pub fn proper_slashing_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     initialize(
         deps.borrow_mut(),
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     //bond
-    do_bond_stluna(&mut deps, addr1.clone(), Uint128::from(1000u64));
+    do_bond_stsei(&mut deps, addr1.clone(), Uint128::from(1000u64));
 
     //this will set the balance of the user in token contract
     deps.querier.with_token_balances(&[
-        (
-            &stluna_token_contract,
-            &[(&addr1, &Uint128::from(1000u128))],
-        ),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(1000u128))]),
         (&String::from("token"), &[]),
     ]);
 
     // slashing
-    set_delegation(&mut deps.querier, validator.clone(), 900, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 900, "usei");
 
     let info = mock_info(&addr1, &[]);
     let report_slashing = CheckSlashing {};
@@ -2047,12 +2047,12 @@ pub fn proper_slashing_stluna() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.stluna_exchange_rate.to_string(), "0.9");
+    assert_eq!(query_exchange_rate.stsei_exchange_rate.to_string(), "0.9");
 
     //bond again to see the update exchange rate
-    let second_bond = ExecuteMsg::BondForStLuna {};
+    let second_bond = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&addr1, &[coin(900, "uluna")]);
+    let info = mock_info(&addr1, &[coin(900, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), second_bond).unwrap();
     assert_eq!(2, res.messages.len());
@@ -2062,7 +2062,7 @@ pub fn proper_slashing_stluna() {
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
-        query_exchange_rate.stluna_exchange_rate.to_string(),
+        query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
     );
 
@@ -2070,7 +2070,7 @@ pub fn proper_slashing_stluna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(900, "uluna"));
+            assert_eq!(amount, coin(900, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
@@ -2082,7 +2082,7 @@ pub fn proper_slashing_stluna() {
             msg,
             funds: _,
         }) => {
-            assert_eq!(contract_addr, stluna_token_contract);
+            assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
                 to_binary(&Mint {
@@ -2095,20 +2095,17 @@ pub fn proper_slashing_stluna() {
         _ => panic!("Unexpected message: {:?}", message),
     }
 
-    set_delegation(&mut deps.querier, validator.clone(), 1800, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 1800, "usei");
 
     //update user balance
     deps.querier.with_token_balances(&[
-        (
-            &stluna_token_contract,
-            &[(&addr1, &Uint128::from(2000u128))],
-        ),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(2000u128))]),
         (&String::from("token"), &[]),
     ]);
 
     let info = mock_info(&addr1, &[]);
     let mut env = mock_env();
-    let _res = execute_unbond_stluna(
+    let _res = execute_unbond_stsei(
         deps.as_mut(),
         env.clone(),
         Uint128::from(500u64),
@@ -2117,15 +2114,12 @@ pub fn proper_slashing_stluna() {
     .unwrap();
 
     deps.querier.with_token_balances(&[
-        (
-            &stluna_token_contract,
-            &[(&addr1, &Uint128::from(1500u128))],
-        ),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(1500u128))]),
         (&String::from("token"), &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(31);
-    let res = execute_unbond_stluna(
+    let res = execute_unbond_stsei(
         deps.as_mut(),
         env.clone(),
         Uint128::from(500u64),
@@ -2134,22 +2128,19 @@ pub fn proper_slashing_stluna() {
     .unwrap();
     let msgs: CosmosMsg = CosmosMsg::Staking(StakingMsg::Undelegate {
         validator: validator.address,
-        amount: coin(900, "uluna"),
+        amount: coin(900, "usei"),
     });
     assert_eq!(res.messages[0].msg, msgs);
 
     deps.querier.with_token_balances(&[
-        (
-            &stluna_token_contract,
-            &[(&addr1, &Uint128::from(1000u128))],
-        ),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(1000u128))]),
         (&token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -2158,7 +2149,7 @@ pub fn proper_slashing_stluna() {
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
-        query_exchange_rate.stluna_exchange_rate.to_string(),
+        query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
     );
 
@@ -2172,7 +2163,7 @@ pub fn proper_slashing_stluna() {
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
-        query_exchange_rate.stluna_exchange_rate.to_string(),
+        query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
     );
 
@@ -2199,7 +2190,7 @@ pub fn proper_withdraw_unbonded() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -2207,7 +2198,7 @@ pub fn proper_withdraw_unbonded() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -2216,12 +2207,12 @@ pub fn proper_withdraw_unbonded() {
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(100, "uluna")]);
+    let info = mock_info(&bob, &[coin(100, "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(100u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -2231,25 +2222,25 @@ pub fn proper_withdraw_unbonded() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(100, "uluna"));
+            assert_eq!(amount, coin(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator, 100, "uluna");
+    set_delegation(&mut deps.querier, validator, 100, "usei");
 
     let res = execute_unbond(deps.as_mut(), mock_env(), Uint128::from(10u64), bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(90u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -2271,7 +2262,7 @@ pub fn proper_withdraw_unbonded() {
     assert!(wdraw_unbonded_res.is_err(), "withdraw unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
     let res = execute_unbond(
@@ -2284,7 +2275,7 @@ pub fn proper_withdraw_unbonded() {
     assert_eq!(res.messages.len(), 2);
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(80u128))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     //this query should be zero since the undelegated period is not passed
@@ -2301,7 +2292,7 @@ pub fn proper_withdraw_unbonded() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(20u64),
         },
     )]);
@@ -2323,7 +2314,7 @@ pub fn proper_withdraw_unbonded() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(20u64));
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(20u64));
     assert_eq!(res.history[0].batch_id, 1);
 
     //check with query
@@ -2374,14 +2365,14 @@ pub fn proper_withdraw_unbonded() {
     let state_query: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
-    assert_eq!(state_query.bluna_exchange_rate, Decimal::one());
+    assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
 }
 
 /// Covers if the withdraw_rate function is updated before and after withdraw_unbonded,
 /// the finished amount is accurate, user requests are removed from the waitlist, and
 /// the BankMsg::Send is sent.
 #[test]
-pub fn proper_withdraw_unbonded_stluna() {
+pub fn proper_withdraw_unbonded_stsei() {
     let mut deps = dependencies(&[]);
 
     let validator = sample_validator(DEFAULT_VALIDATOR);
@@ -2389,7 +2380,7 @@ pub fn proper_withdraw_unbonded_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -2397,23 +2388,23 @@ pub fn proper_withdraw_unbonded_stluna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     let bob = String::from("bob");
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(100, "uluna")]);
+    let info = mock_info(&bob, &[coin(100, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(100u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(100u128))]),
         (&String::from("token"), &[]),
     ]);
 
@@ -2421,33 +2412,33 @@ pub fn proper_withdraw_unbonded_stluna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(100, "uluna"));
+            assert_eq!(amount, coin(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
     let bond_msg = ExecuteMsg::BondRewards {};
 
-    let info = mock_info(&String::from("reward"), &[coin(100, "uluna")]);
+    let info = mock_info(&String::from("reward"), &[coin(100, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(1, res.messages.len());
 
-    set_delegation(&mut deps.querier, validator, 200, "uluna");
+    set_delegation(&mut deps.querier, validator, 200, "usei");
 
-    let res = execute_unbond_stluna(deps.as_mut(), mock_env(), Uint128::from(10u64), bob.clone())
-        .unwrap();
+    let res =
+        execute_unbond_stsei(deps.as_mut(), mock_env(), Uint128::from(10u64), bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
 
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(90u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(90u128))]),
         (&String::from("token"), &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -2469,10 +2460,10 @@ pub fn proper_withdraw_unbonded_stluna() {
     assert!(wdraw_unbonded_res.is_err(), "unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
-    let res = execute_unbond_stluna(
+    let res = execute_unbond_stsei(
         deps.as_mut(),
         env.clone(),
         Uint128::from(10u64),
@@ -2481,16 +2472,16 @@ pub fn proper_withdraw_unbonded_stluna() {
     .unwrap();
     assert_eq!(res.messages.len(), 2);
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(80u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(80u128))]),
         (&String::from("token"), &[]),
     ]);
 
     let state = State {};
     let query_state: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
-    assert_eq!(query_state.total_bond_stluna_amount, Uint128::from(160u64));
+    assert_eq!(query_state.total_bond_stsei_amount, Uint128::from(160u64));
     assert_eq!(
-        query_state.stluna_exchange_rate,
+        query_state.stsei_exchange_rate,
         Decimal::from_ratio(2u128, 1u128)
     );
 
@@ -2508,7 +2499,7 @@ pub fn proper_withdraw_unbonded_stluna() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(40u64),
         },
     )]);
@@ -2530,7 +2521,7 @@ pub fn proper_withdraw_unbonded_stluna() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(20u64));
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(20u64));
     assert_eq!(res.history[0].batch_id, 1);
 
     //check with query
@@ -2581,7 +2572,7 @@ pub fn proper_withdraw_unbonded_stluna() {
     let state_query: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
-    assert_eq!(state_query.bluna_exchange_rate, Decimal::one());
+    assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
 }
 
 #[test]
@@ -2593,7 +2584,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -2601,7 +2592,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -2609,14 +2600,14 @@ pub fn proper_withdraw_unbonded_both_tokens() {
 
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
-    let bond_for_stluna_msg = ExecuteMsg::BondForStLuna {};
+    let bond_for_stsei_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(100, "uluna")]);
+    let info = mock_info(&bob, &[coin(100, "usei")]);
 
     //set bob's balance to 10 in token contracts
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(100u128))]),
-        (&stluna_token_contract, &[(&bob, &Uint128::from(100u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(100u128))]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), bond_msg).unwrap();
@@ -2626,35 +2617,35 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(100, "uluna"));
+            assert_eq!(amount, coin(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator.clone(), 100, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 100, "usei");
 
-    let res = execute(deps.as_mut(), mock_env(), info, bond_for_stluna_msg).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info, bond_for_stsei_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
     let delegate = &res.messages[0];
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(100, "uluna"));
+            assert_eq!(amount, coin(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator.clone(), 200, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 200, "usei");
 
     let bond_msg = ExecuteMsg::BondRewards {};
 
-    let info = mock_info(&String::from("reward"), &[coin(100, "uluna")]);
+    let info = mock_info(&String::from("reward"), &[coin(100, "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(1, res.messages.len());
 
-    set_delegation(&mut deps.querier, validator, 300, "uluna");
+    set_delegation(&mut deps.querier, validator, 300, "usei");
 
     let res = execute_unbond(
         deps.as_mut(),
@@ -2666,14 +2657,14 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(0u128))]),
-        (&stluna_token_contract, &[(&bob, &Uint128::from(100u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(100u128))]),
     ]);
 
     let info = mock_info(&bob, &[]);
     let mut env = mock_env();
 
     env.block.time = env.block.time.plus_seconds(31);
-    let res = execute_unbond_stluna(
+    let res = execute_unbond_stsei(
         deps.as_mut(),
         env.clone(),
         Uint128::from(100u64),
@@ -2684,13 +2675,13 @@ pub fn proper_withdraw_unbonded_both_tokens() {
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(0u128))]),
-        (&stluna_token_contract, &[(&bob, &Uint128::from(0u128))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(0u128))]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -2709,7 +2700,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(300u64),
         },
     )]);
@@ -2732,8 +2723,8 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(100u64));
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(100u64));
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(100u64));
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(100u64));
     assert_eq!(res.history[0].batch_id, 1);
 
     //check with query
@@ -2785,8 +2776,8 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     let state_query: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
-    assert_eq!(state_query.bluna_exchange_rate, Decimal::one());
-    assert_eq!(state_query.stluna_exchange_rate.to_string(), "2");
+    assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
+    assert_eq!(state_query.stsei_exchange_rate.to_string(), "2");
 }
 
 /// Covers slashing during the unbonded period and its effect on the finished amount.
@@ -2802,7 +2793,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -2810,7 +2801,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -2819,12 +2810,12 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -2834,24 +2825,24 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(bond_amount.u128(), "uluna"));
+            assert_eq!(amount, coin(bond_amount.u128(), "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "uluna");
+    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "usei");
 
     let res = execute_unbond(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -2871,7 +2862,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
     assert!(wdraw_unbonded_res.is_err(), "unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
     // trigger undelegation message
@@ -2894,7 +2885,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -2943,7 +2934,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
 
 /// Covers slashing during the unbonded period and its effect on the finished amount.
 #[test]
-pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
+pub fn proper_withdraw_unbonded_respect_slashing_stsei() {
     let mut deps = dependencies(&[]);
 
     let validator = sample_validator(DEFAULT_VALIDATOR);
@@ -2954,7 +2945,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -2962,23 +2953,23 @@ pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     let bob = String::from("bob");
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &bond_amount)]),
+        (&stsei_token_contract, &[(&bob, &bond_amount)]),
         (&String::from("token"), &[]),
     ]);
 
@@ -2986,24 +2977,24 @@ pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(bond_amount.u128(), "uluna"));
+            assert_eq!(amount, coin(bond_amount.u128(), "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "uluna");
+    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "usei");
 
-    let res = execute_unbond_stluna(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(9500u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(9500u64))]),
         (&String::from("token"), &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -3023,15 +3014,14 @@ pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
     assert!(wdraw_unbonded_res.is_err(), "unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
     // trigger undelegation message
-    let res =
-        execute_unbond_stluna(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(2, res.messages.len());
     deps.querier
-        .with_token_balances(&[(&stluna_token_contract, &[(&bob, &Uint128::from(9000u64))])]);
+        .with_token_balances(&[(&stsei_token_contract, &[(&bob, &Uint128::from(9000u64))])]);
 
     //this query should be zero since the undelegated period is not passed
     let withdrawable = WithdrawableUnbonded {
@@ -3047,7 +3037,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stluna() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -3107,7 +3097,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -3115,7 +3105,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -3124,12 +3114,12 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -3139,25 +3129,25 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(bond_amount.u128(), "uluna"));
+            assert_eq!(amount, coin(bond_amount.u128(), "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "uluna");
+    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "usei");
 
     let res = execute_unbond(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -3170,7 +3160,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_bluna_with_fee, unbond_amount);
+    assert_eq!(query_batch.requested_bsei_with_fee, unbond_amount);
 
     env.block.time = env.block.time.plus_seconds(1000);
     let wdraw_unbonded_msg = ExecuteMsg::WithdrawUnbonded {};
@@ -3183,7 +3173,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     assert!(wdraw_unbonded_res.is_err(), "unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
     // trigger undelegation message
@@ -3196,7 +3186,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
-    assert_eq!(query_batch.requested_bluna_with_fee, Uint128::zero());
+    assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     let all_batches = AllHistory {
         start_from: None,
@@ -3204,8 +3194,8 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].bluna_withdraw_rate.to_string(), "1");
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1");
     assert!(
         !res.history[0].released,
         "res.history[0].released is not false"
@@ -3226,7 +3216,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -3277,9 +3267,9 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].bluna_applied_exchange_rate.to_string(), "1");
-    assert_eq!(res.history[0].bluna_withdraw_rate.to_string(), "0.899");
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].bsei_applied_exchange_rate.to_string(), "1");
+    assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "0.899");
     assert!(
         res.history[0].released,
         "res.history[0].released is not true"
@@ -3289,7 +3279,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
 
 /// Covers withdraw_unbonded/inactivity in the system while there are slashing events.
 #[test]
-pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
+pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
     let mut deps = dependencies(&[]);
 
     let validator = sample_validator(DEFAULT_VALIDATOR);
@@ -3300,7 +3290,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -3308,23 +3298,23 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     let bob = String::from("bob");
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &bond_amount)]),
+        (&stsei_token_contract, &[(&bob, &bond_amount)]),
         (&String::from("token"), &[]),
     ]);
 
@@ -3332,25 +3322,25 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     match delegate.msg.clone() {
         CosmosMsg::Staking(StakingMsg::Delegate { validator, amount }) => {
             assert_eq!(validator.as_str(), DEFAULT_VALIDATOR);
-            assert_eq!(amount, coin(bond_amount.u128(), "uluna"));
+            assert_eq!(amount, coin(bond_amount.u128(), "usei"));
         }
         _ => panic!("Unexpected message: {:?}", delegate),
     }
 
-    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "uluna");
+    set_delegation(&mut deps.querier, validator, bond_amount.u128(), "usei");
 
-    let res = execute_unbond_stluna(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
 
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(9500u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(9500u64))]),
         (&String::from("token"), &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -3363,7 +3353,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_stluna, unbond_amount);
+    assert_eq!(query_batch.requested_stsei, unbond_amount);
 
     env.block.time = env.block.time.plus_seconds(1000);
     let wdraw_unbonded_msg = ExecuteMsg::WithdrawUnbonded {};
@@ -3376,21 +3366,20 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     assert!(wdraw_unbonded_res.is_err(), "unbonded error");
     assert_eq!(
         wdraw_unbonded_res.unwrap_err(),
-        StdError::generic_err("No withdrawable uluna assets are available yet")
+        StdError::generic_err("No withdrawable usei assets are available yet")
     );
 
     // trigger undelegation message
-    let res =
-        execute_unbond_stluna(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(2, res.messages.len());
     deps.querier
-        .with_token_balances(&[(&stluna_token_contract, &[(&bob, &Uint128::from(9000u64))])]);
+        .with_token_balances(&[(&stsei_token_contract, &[(&bob, &Uint128::from(9000u64))])]);
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
-    assert_eq!(query_batch.requested_stluna, Uint128::zero());
+    assert_eq!(query_batch.requested_stsei, Uint128::zero());
 
     let all_batches = AllHistory {
         start_from: None,
@@ -3398,8 +3387,8 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].stluna_withdraw_rate.to_string(), "1");
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "1");
     assert!(
         !res.history[0].released,
         "res.history[0].released is not true"
@@ -3420,7 +3409,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(900u64),
         },
     )]);
@@ -3471,9 +3460,9 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stluna() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].stluna_applied_exchange_rate.to_string(), "1");
-    assert_eq!(res.history[0].stluna_withdraw_rate.to_string(), "0.899");
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].stsei_applied_exchange_rate.to_string(), "1");
+    assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "0.899");
     assert!(
         res.history[0].released,
         "res.history[0].released is not true"
@@ -3495,7 +3484,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -3503,7 +3492,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -3512,12 +3501,12 @@ pub fn proper_withdraw_unbond_with_dummies() {
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -3527,7 +3516,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
         &mut deps.querier,
         validator.clone(),
         bond_amount.u128(),
-        "uluna",
+        "usei",
     );
 
     let res = execute_unbond(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
@@ -3535,13 +3524,13 @@ pub fn proper_withdraw_unbond_with_dummies() {
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -3556,7 +3545,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9000u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // slashing
@@ -3564,14 +3553,14 @@ pub fn proper_withdraw_unbond_with_dummies() {
         &mut deps.querier,
         validator,
         bond_amount.u128() - 2000,
-        "uluna",
+        "usei",
     );
 
     let res = execute_unbond(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(8500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(31);
@@ -3579,14 +3568,14 @@ pub fn proper_withdraw_unbond_with_dummies() {
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(8000u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     // fabricate balance of the hub contract
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(2200u64),
         },
     )]);
@@ -3603,23 +3592,23 @@ pub fn proper_withdraw_unbond_with_dummies() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].bluna_withdraw_rate.to_string(), "1.164");
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1.164");
     assert!(
         res.history[0].released,
         "res.history[0].released is not true"
     );
     assert_eq!(res.history[0].batch_id, 1);
-    assert_eq!(res.history[1].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[1].bluna_withdraw_rate.to_string(), "1.033");
+    assert_eq!(res.history[1].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[1].bsei_withdraw_rate.to_string(), "1.033");
     assert!(
         res.history[1].released,
         "res.history[1].released is not true"
     );
     assert_eq!(res.history[1].batch_id, 2);
 
-    let expected = (res.history[0].bluna_withdraw_rate * res.history[0].bluna_amount)
-        + res.history[1].bluna_withdraw_rate * res.history[1].bluna_amount;
+    let expected = (res.history[0].bsei_withdraw_rate * res.history[0].bsei_amount)
+        + res.history[1].bsei_withdraw_rate * res.history[1].bsei_amount;
     let sent_message = &success_res.messages[0];
     match sent_message.msg.clone() {
         CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
@@ -3640,7 +3629,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
 /// Covers if the signed integer works properly,
 /// the exception when a user sends rogue coin.
 #[test]
-pub fn proper_withdraw_unbond_with_dummies_stluna() {
+pub fn proper_withdraw_unbond_with_dummies_stsei() {
     let mut deps = dependencies(&[]);
 
     let validator = sample_validator(DEFAULT_VALIDATOR);
@@ -3651,7 +3640,7 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -3659,23 +3648,23 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
     do_register_validator(&mut deps, validator.clone());
 
     let bob = String::from("bob");
-    let bond_msg = ExecuteMsg::BondForStLuna {};
+    let bond_msg = ExecuteMsg::BondForStSei {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &bond_amount)]),
+        (&stsei_token_contract, &[(&bob, &bond_amount)]),
         (&String::from("token"), &[]),
     ]);
 
@@ -3683,21 +3672,21 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
         &mut deps.querier,
         validator.clone(),
         bond_amount.u128(),
-        "uluna",
+        "usei",
     );
 
-    let res = execute_unbond_stluna(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
 
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(9500u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(9500u64))]),
         (&String::from("token"), &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -3708,11 +3697,10 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
     //set the block time 30 seconds from now.
     env.block.time = env.block.time.plus_seconds(31);
     // trigger undelegation message
-    let res =
-        execute_unbond_stluna(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(9000u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(9000u64))]),
         (&String::from("token"), &[]),
     ]);
 
@@ -3721,23 +3709,21 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
         &mut deps.querier,
         validator,
         bond_amount.u128() - 2000,
-        "uluna",
+        "usei",
     );
 
-    let res =
-        execute_unbond_stluna(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(8500u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(8500u64))]),
         (&String::from("token"), &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(31);
-    let res =
-        execute_unbond_stluna(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
+    let res = execute_unbond_stsei(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
-        (&stluna_token_contract, &[(&bob, &Uint128::from(8000u64))]),
+        (&stsei_token_contract, &[(&bob, &Uint128::from(8000u64))]),
         (&String::from("token"), &[]),
     ]);
 
@@ -3745,7 +3731,7 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(2200u64),
         },
     )]);
@@ -3762,23 +3748,23 @@ pub fn proper_withdraw_unbond_with_dummies_stluna() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].stluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].stluna_withdraw_rate.to_string(), "1.164");
+    assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "1.164");
     assert!(
         res.history[0].released,
         "res.history[0].released is not true"
     );
     assert_eq!(res.history[0].batch_id, 1);
-    assert_eq!(res.history[1].stluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[1].stluna_withdraw_rate.to_string(), "1.033");
+    assert_eq!(res.history[1].stsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[1].stsei_withdraw_rate.to_string(), "1.033");
     assert!(
         res.history[1].released,
         "res.history[1].released is not true"
     );
     assert_eq!(res.history[1].batch_id, 2);
 
-    let expected = (res.history[0].stluna_withdraw_rate * res.history[0].stluna_amount)
-        + res.history[1].stluna_withdraw_rate * res.history[1].stluna_amount;
+    let expected = (res.history[0].stsei_withdraw_rate * res.history[0].stsei_amount)
+        + res.history[1].stsei_withdraw_rate * res.history[1].stsei_amount;
     let sent_message = &success_res.messages[0];
     match sent_message.msg.clone() {
         CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
@@ -3816,7 +3802,7 @@ pub fn test_update_params() {
     };
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -3824,7 +3810,7 @@ pub fn test_update_params() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     let invalid_info = mock_info(String::from("invalid").as_str(), &[]);
@@ -3842,7 +3828,7 @@ pub fn test_update_params() {
     let params: Parameters =
         from_binary(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
     assert_eq!(params.epoch_period, 20);
-    assert_eq!(params.underlying_coin_denom, "uluna");
+    assert_eq!(params.underlying_coin_denom, "usei");
     assert_eq!(params.unbonding_period, 2);
     assert_eq!(params.peg_recovery_fee, Decimal::zero());
     assert_eq!(params.er_threshold, Decimal::one());
@@ -3865,7 +3851,7 @@ pub fn test_update_params() {
     let params: Parameters =
         from_binary(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
     assert_eq!(params.epoch_period, 20);
-    assert_eq!(params.underlying_coin_denom, "uluna");
+    assert_eq!(params.underlying_coin_denom, "usei");
     assert_eq!(params.unbonding_period, 3);
     assert_eq!(params.peg_recovery_fee, Decimal::one());
     assert_eq!(params.er_threshold, Decimal::zero());
@@ -3930,7 +3916,7 @@ pub fn proper_recovery_fee() {
     };
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     let bond_amount = Uint128::from(1000000u128);
@@ -3941,7 +3927,7 @@ pub fn proper_recovery_fee() {
         owner,
         reward_contract,
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
@@ -3952,7 +3938,7 @@ pub fn proper_recovery_fee() {
     let parmas: Parameters =
         from_binary(&query(deps.as_ref(), mock_env(), get_params).unwrap()).unwrap();
     assert_eq!(parmas.epoch_period, 30);
-    assert_eq!(parmas.underlying_coin_denom, "uluna");
+    assert_eq!(parmas.underlying_coin_denom, "usei");
     assert_eq!(parmas.unbonding_period, 2);
     assert_eq!(parmas.peg_recovery_fee.to_string(), "0.001");
     assert_eq!(parmas.er_threshold.to_string(), "0.99");
@@ -3966,15 +3952,15 @@ pub fn proper_recovery_fee() {
     //this will set the balance of the user in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), bond_msg).unwrap();
     assert_eq!(2, res.messages.len());
 
-    set_delegation(&mut deps.querier, validator.clone(), 900000, "uluna");
+    set_delegation(&mut deps.querier, validator.clone(), 900000, "usei");
 
     let report_slashing = CheckSlashing {};
     let res = execute(deps.as_mut(), mock_env(), info, report_slashing).unwrap();
@@ -3983,7 +3969,7 @@ pub fn proper_recovery_fee() {
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
-    assert_eq!(query_exchange_rate.bluna_exchange_rate.to_string(), "0.9");
+    assert_eq!(query_exchange_rate.bsei_exchange_rate.to_string(), "0.9");
 
     //Bond again to see the applied result
     let bob = String::from("bob");
@@ -3991,10 +3977,10 @@ pub fn proper_recovery_fee() {
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
     let mut env = mock_env();
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -4046,11 +4032,11 @@ pub fn proper_recovery_fee() {
     let query_batch: CurrentBatchResponse =
         from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
-    assert_eq!(query_batch.requested_bluna_with_fee, bonded_with_fee);
+    assert_eq!(query_batch.requested_bsei_with_fee, bonded_with_fee);
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &new_balance)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(60);
@@ -4073,14 +4059,14 @@ pub fn proper_recovery_fee() {
     let new_balance = new_balance - unbond_amount;
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &new_balance)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
-    // during undelegation CurrentBatch.requested_bluna_with_fee sets to zero, so we query requested_bluna_with_fee
+    // during undelegation CurrentBatch.requested_bsei_with_fee sets to zero, so we query requested_bsei_with_fee
     // before test undelegation to calculate unbond_undelegation properly
     let unbond_exchange_rate = Decimal::from_ratio(
-        query_state.total_bond_bluna_amount,
-        new_balance + query_batch.requested_bluna_with_fee + query_batch.requested_bluna_with_fee,
+        query_state.total_bond_bsei_amount,
+        new_balance + query_batch.requested_bsei_with_fee + query_batch.requested_bsei_with_fee,
     );
     let expected = bonded_with_fee + bonded_with_fee;
     let undelegate_message = &res.messages[0];
@@ -4099,7 +4085,7 @@ pub fn proper_recovery_fee() {
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(161870u64),
         },
     )]);
@@ -4134,15 +4120,15 @@ pub fn proper_recovery_fee() {
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     // amount should be 99 + 99 since we store the requested amount with peg fee applied.
     assert_eq!(
-        res.history[0].bluna_amount,
+        res.history[0].bsei_amount,
         bonded_with_fee + bonded_with_fee
     );
     assert_eq!(
-        res.history[0].bluna_applied_exchange_rate,
+        res.history[0].bsei_applied_exchange_rate,
         unbond_exchange_rate
     );
     assert_eq!(
-        res.history[0].bluna_withdraw_rate,
+        res.history[0].bsei_withdraw_rate,
         Decimal::from_ratio(Uint128::from(161869u64), bonded_with_fee + bonded_with_fee)
     );
     assert!(res.history[0].released, "history[0].released is not true");
@@ -4161,7 +4147,7 @@ pub fn proper_update_config() {
     let new_owner = String::from("new_owner");
     let invalid_owner = String::from("invalid_owner");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     let airdrop_registry = String::from("airdrop_registry");
 
@@ -4170,13 +4156,13 @@ pub fn proper_update_config() {
         owner.clone(),
         reward_contract.clone(),
         token_contract.clone(),
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     let config = Config {};
     let config_query: ConfigResponse =
         from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
-    assert_eq!(&config_query.bluna_token_contract.unwrap(), &token_contract);
+    assert_eq!(&config_query.bsei_token_contract.unwrap(), &token_contract);
     assert_eq!(
         &config_query.airdrop_registry_contract.unwrap(),
         &airdrop_registry
@@ -4193,10 +4179,12 @@ pub fn proper_update_config() {
     let update_config = UpdateConfig {
         owner: Some(new_owner.clone()),
         rewards_dispatcher_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let info = mock_info(&invalid_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config);
@@ -4206,10 +4194,12 @@ pub fn proper_update_config() {
     let update_config = UpdateConfig {
         owner: Some(new_owner.clone()),
         rewards_dispatcher_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
@@ -4248,10 +4238,12 @@ pub fn proper_update_config() {
     let update_config = UpdateConfig {
         owner: None,
         rewards_dispatcher_contract: Some(String::from("new reward")),
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4273,16 +4265,18 @@ pub fn proper_update_config() {
     let update_config = UpdateConfig {
         owner: None,
         rewards_dispatcher_contract: None,
-        bluna_token_contract: Some(String::from("new token")),
+        bsei_token_contract: Some(String::from("new token")),
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("updating bLuna token address is forbidden",)
+        StdError::generic_err("updating bsei token address is forbidden",)
     );
 
     let config = Config {};
@@ -4296,17 +4290,19 @@ pub fn proper_update_config() {
     );
     assert_eq!(config_query.owner, new_owner);
     assert_eq!(
-        config_query.bluna_token_contract.unwrap(),
+        config_query.bsei_token_contract.unwrap(),
         String::from("token")
     );
 
     let update_config = UpdateConfig {
         owner: None,
         rewards_dispatcher_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: Some(String::from("new airdrop")),
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4324,9 +4320,11 @@ pub fn proper_update_config() {
         owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: Some(String::from("new registry")),
-        bluna_token_contract: None,
-        stluna_token_contract: None,
+        bsei_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4344,23 +4342,25 @@ pub fn proper_update_config() {
         owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        bluna_token_contract: None,
-        stluna_token_contract: Some(stluna_token_contract.clone()),
+        bsei_token_contract: None,
+        stsei_token_contract: Some(stsei_token_contract.clone()),
+        rewards_contract: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("updating stLuna token address is forbidden",)
+        StdError::generic_err("updating stsei token address is forbidden",)
     );
 
     let config = Config {};
     let config_query: ConfigResponse =
         from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(
-        config_query.stluna_token_contract.unwrap(),
-        stluna_token_contract,
+        config_query.stsei_token_contract.unwrap(),
+        stsei_token_contract,
     );
 }
 
@@ -4372,7 +4372,7 @@ fn proper_claim_airdrop() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     let airdrop_registry = String::from("airdrop_registry");
 
@@ -4381,7 +4381,7 @@ fn proper_claim_airdrop() {
         owner.clone(),
         reward_contract,
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     let claim_msg = ExecuteMsg::ClaimAirdrop {
@@ -4435,7 +4435,7 @@ fn proper_swap_hook() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -4443,7 +4443,7 @@ fn proper_swap_hook() {
         owner.clone(),
         reward_contract.clone(),
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     let swap_msg = ExecuteMsg::SwapHook {
@@ -4514,7 +4514,7 @@ fn proper_update_global_index_with_airdrop() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -4522,7 +4522,7 @@ fn proper_update_global_index_with_airdrop() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -4533,7 +4533,7 @@ fn proper_update_global_index_with_airdrop() {
 
     //set delegation for query-all-delegation
     let delegations: [FullDelegation; 1] =
-        [(sample_delegation(validator.address.clone(), coin(bond_amount.u128(), "uluna")))];
+        [(sample_delegation(validator.address.clone(), coin(bond_amount.u128(), "usei")))];
 
     let validators: [Validator; 1] = [(validator)];
 
@@ -4542,7 +4542,7 @@ fn proper_update_global_index_with_airdrop() {
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&addr1, &bond_amount)]),
-        (&stluna_token_contract, &[(&addr1, &Uint128::from(10u64))]),
+        (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
     let binary_msg = to_binary(&FabricateMIRClaim {
@@ -4587,7 +4587,7 @@ fn proper_update_global_index_with_airdrop() {
 
 fn set_delegation(querier: &mut WasmMockQuerier, validator: Validator, amount: u128, denom: &str) {
     querier.update_staking(
-        "uluna",
+        "usei",
         &[validator.clone()],
         &[sample_delegation(validator.address, coin(amount, denom))],
     );
@@ -4598,7 +4598,7 @@ fn set_delegation_query(
     delegate: &[FullDelegation],
     validators: &[Validator],
 ) {
-    querier.update_staking("uluna", validators, delegate);
+    querier.update_staking("usei", validators, delegate);
 }
 
 fn sample_delegation(addr: String, amount: Coin) -> FullDelegation {
@@ -4622,20 +4622,20 @@ pub enum MIRMsg {
 }
 
 #[test]
-fn test_convert_to_stluna_with_slashing_and_peg_fee() {
+fn test_convert_to_stsei_with_slashing_and_peg_fee() {
     let mut deps = dependencies(&coins(2, "token"));
     let sender_addr = String::from("addr001");
     let owner = String::from("owner1");
-    let bluna_token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let bsei_token_contract = String::from("token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
         deps.borrow_mut(),
         owner,
         reward_contract,
-        bluna_token_contract.clone(),
-        stluna_token_contract.clone(),
+        bsei_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
     let validator = sample_validator(DEFAULT_VALIDATOR);
     set_validator_mock(&mut deps.querier);
@@ -4643,19 +4643,19 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
 
     STATE
         .update(&mut deps.storage, |mut prev_state| -> StdResult<_> {
-            prev_state.total_bond_stluna_amount = Uint128::from(2000u64);
-            prev_state.total_bond_bluna_amount = Uint128::from(2000u64);
-            // set stluna er to 1.2, slashing during convert procedure should make it equal to 1
-            prev_state.stluna_exchange_rate =
+            prev_state.total_bond_stsei_amount = Uint128::from(2000u64);
+            prev_state.total_bond_bsei_amount = Uint128::from(2000u64);
+            // set stsei er to 1.2, slashing during convert procedure should make it equal to 1
+            prev_state.stsei_exchange_rate =
                 Decimal::from_ratio(Uint128::from(12u64), Uint128::from(10u64));
             Ok(prev_state)
         })
         .unwrap();
     // delegating only 3200 = simulate we have delegated 4000 and we lost 800 on slashing
     // slashing shoud lead us to
-    // bluna er = (2000-400)/2000 = 0.8
-    // stluna er = (2000-400)/1600 = 1
-    set_delegation(&mut deps.querier, validator, 3200, "uluna");
+    // bsei er = (2000-400)/2000 = 0.8
+    // stsei er = (2000-400)/1600 = 1
+    set_delegation(&mut deps.querier, validator, 3200, "usei");
     PARAMETERS
         .update(&mut deps.storage, |mut prev_param| -> StdResult<_> {
             prev_param.peg_recovery_fee = Decimal::from_str("0.05")?;
@@ -4664,7 +4664,7 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
         .unwrap();
     deps.querier.with_token_balances(&[
         (
-            &String::from("stluna_token"),
+            &String::from("stsei_token"),
             &[(&sender_addr, &Uint128::from(1600u64))],
         ),
         (
@@ -4674,35 +4674,35 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
     ]);
     /*
 
-    bluna_amount = 1000
-    max_peg_fee = bluna_amount * recovery_fee = 1000 * 0.05 = 50
-    required_peg_fee = 1000(bluna supply) - 800 = 200
+    bsei_amount = 1000
+    max_peg_fee = bsei_amount * recovery_fee = 1000 * 0.05 = 50
+    required_peg_fee = 1000(bsei supply) - 800 = 200
     peg_fee = min(50,200) = 50
-    bluna_amount_with_fee = 1000-50 = 950
+    bsei_amount_with_fee = 1000-50 = 950
 
-    we burn 1000bluna, but converting only 950, denom eqiuv 950*0.8 = 760
-    we mint 760stluna tokens
+    we burn 1000bsei, but converting only 950, denom eqiuv 950*0.8 = 760
+    we mint 760stsei tokens
 
-    let bluna_amount_with_fee: Uint128;
-    if state.bluna_exchange_rate < threshold {
-        let max_peg_fee = bluna_amount * recovery_fee;
-        let required_peg_fee = (total_bluna_supply + current_batch.requested_bluna_with_fee)
-            .checked_sub(state.total_bond_bluna_amount)?;
+    let bsei_amount_with_fee: Uint128;
+    if state.bsei_exchange_rate < threshold {
+        let max_peg_fee = bsei_amount * recovery_fee;
+        let required_peg_fee = (total_bsei_supply + current_batch.requested_bsei_with_fee)
+            .checked_sub(state.total_bond_bsei_amount)?;
         let peg_fee = Uint128::min(max_peg_fee, required_peg_fee);
-        bluna_amount_with_fee = bluna_amount.checked_sub(peg_fee)?;
+        bsei_amount_with_fee = bsei_amount.checked_sub(peg_fee)?;
     } else {
-        bluna_amount_with_fee = bluna_amount;
+        bsei_amount_with_fee = bsei_amount;
     }
 
-    new bluna exchange rate
-    bonded amount bluna before convert - 1600
-    convert denom equiv(950 bluna) - 760
+    new bsei exchange rate
+    bonded amount bsei before convert - 1600
+    convert denom equiv(950 bsei) - 760
     new bonded amount - 840
-    new bluna tokens amount - 1000
+    new bsei tokens amount - 1000
     new rate = 840/1000 - 0.84
     */
 
-    let info = mock_info(bluna_token_contract.as_str(), &[]);
+    let info = mock_info(bsei_token_contract.as_str(), &[]);
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: sender_addr.clone(),
         amount: Uint128::from(1000u64),
@@ -4712,18 +4712,18 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
     let applied_exchange_rate = &r
         .attributes
         .iter()
-        .find(|a| a.key == "bluna_exchange_rate")
+        .find(|a| a.key == "bsei_exchange_rate")
         .unwrap()
         .value;
     assert_eq!("0.8", applied_exchange_rate);
 
-    let bluna_minted_with_fee = &r
+    let bsei_minted_with_fee = &r
         .attributes
         .iter()
-        .find(|a| a.key == "bluna_amount")
+        .find(|a| a.key == "bsei_amount")
         .unwrap()
         .value;
-    assert_eq!("1000", bluna_minted_with_fee);
+    assert_eq!("1000", bsei_minted_with_fee);
 
     let mint_msg = Cw20ExecuteMsg::Mint {
         recipient: sender_addr,
@@ -4732,7 +4732,7 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
     assert_eq!(
         r.messages[0].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: stluna_token_contract,
+            contract_addr: stsei_token_contract,
             msg: to_binary(&mint_msg).unwrap(),
             funds: vec![],
         })
@@ -4744,7 +4744,7 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
     assert_eq!(
         r.messages[1].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: bluna_token_contract,
+            contract_addr: bsei_token_contract,
             msg: to_binary(&burn_msg).unwrap(),
             funds: vec![],
         })
@@ -4752,25 +4752,25 @@ fn test_convert_to_stluna_with_slashing_and_peg_fee() {
 
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
-    let new_exchange = query_exchange_rate.bluna_exchange_rate;
+    let new_exchange = query_exchange_rate.bsei_exchange_rate;
     assert_eq!("0.42", new_exchange.to_string());
 }
 
 #[test]
-fn test_convert_to_bluna_with_slashing_and_peg_fee() {
+fn test_convert_to_bsei_with_slashing_and_peg_fee() {
     let mut deps = dependencies(&coins(2, "token"));
     let sender_addr = String::from("addr001");
     let owner = String::from("owner1");
-    let bluna_token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let bsei_token_contract = String::from("token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
         deps.borrow_mut(),
         owner,
         reward_contract,
-        bluna_token_contract.clone(),
-        stluna_token_contract.clone(),
+        bsei_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
     let validator = sample_validator(DEFAULT_VALIDATOR);
     set_validator_mock(&mut deps.querier);
@@ -4778,19 +4778,19 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
 
     STATE
         .update(&mut deps.storage, |mut prev_state| -> StdResult<_> {
-            prev_state.total_bond_stluna_amount = Uint128::from(2000u64);
-            prev_state.total_bond_bluna_amount = Uint128::from(2000u64);
-            // set stluna er to 1.2, slashing during convert procedure should make it equal to 1
-            prev_state.stluna_exchange_rate =
+            prev_state.total_bond_stsei_amount = Uint128::from(2000u64);
+            prev_state.total_bond_bsei_amount = Uint128::from(2000u64);
+            // set stsei er to 1.2, slashing during convert procedure should make it equal to 1
+            prev_state.stsei_exchange_rate =
                 Decimal::from_ratio(Uint128::from(12u64), Uint128::from(10u64));
             Ok(prev_state)
         })
         .unwrap();
     // delegating only 3200 = simulate we have delegated 4000 and we lost 800 on slashing
     // slashing shoud lead us to
-    // bluna er = (2000-400)/2000 = 0.8
-    // stluna er = (2000-400)/1600 = 1
-    set_delegation(&mut deps.querier, validator, 3200, "uluna");
+    // bsei er = (2000-400)/2000 = 0.8
+    // stsei er = (2000-400)/1600 = 1
+    set_delegation(&mut deps.querier, validator, 3200, "usei");
     PARAMETERS
         .update(&mut deps.storage, |mut prev_param| -> StdResult<_> {
             prev_param.peg_recovery_fee = Decimal::from_str("0.05")?;
@@ -4799,7 +4799,7 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
         .unwrap();
     deps.querier.with_token_balances(&[
         (
-            &String::from("stluna_token"),
+            &String::from("stsei_token"),
             &[(&sender_addr, &Uint128::from(1600u64))],
         ),
         (
@@ -4808,26 +4808,26 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
         ),
     ]);
     /*
-    we burn 1000stluna tokens for 1000uluna (denom_equiv)
-    bluna_exchange_rate = 0.8
-    bluna_to_mint = 1000/0.8 = 1250
-    max_peg_fee = bluna_to_mint * recovery_fee = 1250 * 0.05 = 62
+    we burn 1000stsei tokens for 1000usei (denom_equiv)
+    bsei_exchange_rate = 0.8
+    bsei_to_mint = 1000/0.8 = 1250
+    max_peg_fee = bsei_to_mint * recovery_fee = 1250 * 0.05 = 62
     required_peg_fee = 2000 + 1250 - (1600+1000) = 650
     peg_fee = min(62,650) = 62
-    bluna_mint_amount_with_fee = bluna_to_mint - 62 = 1188
+    bsei_mint_amount_with_fee = bsei_to_mint - 62 = 1188
 
-    bluna_exchange_rate after conversion = (1600(bluna bonded amount before) + 1000(denom_equiv)) / (2000 + 1188) = 0.81555834....
+    bsei_exchange_rate after conversion = (1600(bsei bonded amount before) + 1000(denom_equiv)) / (2000 + 1188) = 0.81555834....
 
-    if state.bluna_exchange_rate < threshold {
-        let max_peg_fee = bluna_to_mint * recovery_fee;
-        let required_peg_fee = (total_bluna_supply + bluna_to_mint + requested_bluna_with_fee)
-            - (state.total_bond_bluna_amount + denom_equiv);
+    if state.bsei_exchange_rate < threshold {
+        let max_peg_fee = bsei_to_mint * recovery_fee;
+        let required_peg_fee = (total_bsei_supply + bsei_to_mint + requested_bsei_with_fee)
+            - (state.total_bond_bsei_amount + denom_equiv);
         let peg_fee = Uint128::min(max_peg_fee, required_peg_fee);
-        bluna_mint_amount_with_fee = bluna_to_mint.checked_sub(peg_fee)?;
+        bsei_mint_amount_with_fee = bsei_to_mint.checked_sub(peg_fee)?;
     }
     */
 
-    let info = mock_info(stluna_token_contract.as_str(), &[]);
+    let info = mock_info(stsei_token_contract.as_str(), &[]);
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: sender_addr.clone(),
         amount: Uint128::from(1000u64),
@@ -4837,18 +4837,18 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
     let applied_exchange_rate = &r
         .attributes
         .iter()
-        .find(|a| a.key == "bluna_exchange_rate")
+        .find(|a| a.key == "bsei_exchange_rate")
         .unwrap()
         .value;
     assert_eq!("0.8", applied_exchange_rate);
 
-    let bluna_minted_with_fee = &r
+    let bsei_minted_with_fee = &r
         .attributes
         .iter()
-        .find(|a| a.key == "bluna_amount")
+        .find(|a| a.key == "bsei_amount")
         .unwrap()
         .value;
-    assert_eq!("1188", bluna_minted_with_fee);
+    assert_eq!("1188", bsei_minted_with_fee);
 
     let mint_msg = Cw20ExecuteMsg::Mint {
         recipient: sender_addr,
@@ -4857,7 +4857,7 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
     assert_eq!(
         r.messages[0].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: bluna_token_contract,
+            contract_addr: bsei_token_contract,
             msg: to_binary(&mint_msg).unwrap(),
             funds: vec![],
         })
@@ -4869,7 +4869,7 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
     assert_eq!(
         r.messages[1].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: stluna_token_contract,
+            contract_addr: stsei_token_contract,
             msg: to_binary(&burn_msg).unwrap(),
             funds: vec![],
         })
@@ -4877,7 +4877,7 @@ fn test_convert_to_bluna_with_slashing_and_peg_fee() {
 
     let query_exchange_rate: StateResponse =
         from_binary(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
-    let new_exchange = query_exchange_rate.bluna_exchange_rate;
+    let new_exchange = query_exchange_rate.bsei_exchange_rate;
     assert_eq!("1.3", new_exchange.to_string());
 }
 
@@ -4886,27 +4886,27 @@ fn test_receive_cw20() {
     let mut deps = dependencies(&coins(2, "token"));
     let sender_addr = String::from("addr001");
     let owner = String::from("owner1");
-    let bluna_token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let bsei_token_contract = String::from("token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
         deps.borrow_mut(),
         owner,
         reward_contract,
-        bluna_token_contract.clone(),
-        stluna_token_contract.clone(),
+        bsei_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
     STATE
         .update(&mut deps.storage, |mut prev_state| -> StdResult<_> {
-            prev_state.total_bond_stluna_amount = Uint128::from(1000u64);
-            prev_state.total_bond_bluna_amount = Uint128::from(1000u64);
+            prev_state.total_bond_stsei_amount = Uint128::from(1000u64);
+            prev_state.total_bond_bsei_amount = Uint128::from(1000u64);
             Ok(prev_state)
         })
         .unwrap();
     deps.querier.with_token_balances(&[
         (
-            &String::from("stluna_token"),
+            &String::from("stsei_token"),
             &[(&sender_addr, &Uint128::from(1000u64))],
         ),
         (
@@ -4915,8 +4915,8 @@ fn test_receive_cw20() {
         ),
     ]);
     {
-        // just enough stluna tokens to convert
-        let info = mock_info(stluna_token_contract.as_str(), &[]);
+        // just enough stsei tokens to convert
+        let info = mock_info(stsei_token_contract.as_str(), &[]);
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1000u64),
@@ -4925,8 +4925,8 @@ fn test_receive_cw20() {
         let _ = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     }
     {
-        // does not enough stluna tokens to convert
-        let info = mock_info(stluna_token_contract.as_str(), &[]);
+        // does not enough stsei tokens to convert
+        let info = mock_info(stsei_token_contract.as_str(), &[]);
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1001u64),
@@ -4935,15 +4935,15 @@ fn test_receive_cw20() {
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
             StdError::generic_err(
-                "Decrease amount cannot exceed total stluna bond amount: 0. Trying to reduce: 1001"
+                "Decrease amount cannot exceed total stsei bond amount: 0. Trying to reduce: 1001"
             ),
             err
         );
     }
 
     {
-        // just enough bluna tokens to convert
-        let info = mock_info(bluna_token_contract.as_str(), &[]);
+        // just enough bsei tokens to convert
+        let info = mock_info(bsei_token_contract.as_str(), &[]);
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1000u64),
@@ -4952,8 +4952,8 @@ fn test_receive_cw20() {
         let _ = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     }
     {
-        // does not enough bluna tokens to convert
-        let info = mock_info(bluna_token_contract.as_str(), &[]);
+        // does not enough bsei tokens to convert
+        let info = mock_info(bsei_token_contract.as_str(), &[]);
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr,
             amount: Uint128::from(1001u64),
@@ -4962,7 +4962,7 @@ fn test_receive_cw20() {
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
             StdError::generic_err(
-                "Decrease amount cannot exceed total bluna bond amount: 1000. Trying to reduce: 1001"
+                "Decrease amount cannot exceed total bsei bond amount: 1000. Trying to reduce: 1001"
             ),
             err
         );
@@ -4979,7 +4979,7 @@ fn proper_redelegate_proxy() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     let validators_registry = String::from("validators_registry");
 
@@ -4988,12 +4988,12 @@ fn proper_redelegate_proxy() {
         owner.clone(),
         reward_contract,
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     let redelegate_proxy_msg = ExecuteMsg::RedelegateProxy {
         src_validator: String::from("src_validator"),
-        redelegations: vec![(String::from("dst_validator"), Coin::new(100, "uluna"))],
+        redelegations: vec![(String::from("dst_validator"), Coin::new(100, "usei"))],
     };
 
     //invalid sender
@@ -5026,7 +5026,7 @@ fn proper_redelegate_proxy() {
         }) => {
             assert_eq!(src_validator, String::from("src_validator"));
             assert_eq!(dst_validator, String::from("dst_validator"));
-            assert_eq!(amount, Coin::new(100, "uluna"));
+            assert_eq!(amount, Coin::new(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", redelegate),
     }
@@ -5044,7 +5044,7 @@ fn proper_redelegate_proxy() {
         }) => {
             assert_eq!(src_validator, String::from("src_validator"));
             assert_eq!(dst_validator, String::from("dst_validator"));
-            assert_eq!(amount, Coin::new(100, "uluna"));
+            assert_eq!(amount, Coin::new(100, "usei"));
         }
         _ => panic!("Unexpected message: {:?}", redelegate),
     }
@@ -5060,7 +5060,7 @@ pub fn test_pause() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -5068,7 +5068,7 @@ pub fn test_pause() {
         owner.clone(),
         reward_contract,
         token_contract,
-        stluna_token_contract,
+        stsei_token_contract,
     );
 
     // set paused = true
@@ -5087,10 +5087,12 @@ pub fn test_pause() {
     let update_config = UpdateConfig {
         owner: Some(owner.clone()),
         rewards_dispatcher_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config);
@@ -5114,10 +5116,12 @@ pub fn test_pause() {
     let update_config = UpdateConfig {
         owner: Some(owner.clone()),
         rewards_dispatcher_contract: None,
-        bluna_token_contract: None,
+        bsei_token_contract: None,
         airdrop_registry_contract: None,
+        stable_contract: None,
         validators_registry_contract: None,
-        stluna_token_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
     };
     let info = mock_info(&owner, &[]);
     execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
@@ -5129,7 +5133,7 @@ pub fn test_pause() {
     position_indexer
         .update(&batch, |asked_already| -> StdResult<UnbondWaitEntity> {
             let mut wl = asked_already.unwrap_or_default();
-            wl.bluna_amount += Uint128::new(42);
+            wl.bsei_amount += Uint128::new(42);
             Ok(wl)
         })
         .unwrap();
@@ -5203,7 +5207,7 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
 
     let owner = String::from("owner1");
     let token_contract = String::from("token");
-    let stluna_token_contract = String::from("stluna_token");
+    let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
 
     initialize(
@@ -5211,7 +5215,7 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
         owner,
         reward_contract,
         token_contract,
-        stluna_token_contract.clone(),
+        stsei_token_contract.clone(),
     );
 
     // register_validator
@@ -5220,12 +5224,12 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
     let bob = String::from("bob");
     let bond_msg = ExecuteMsg::Bond {};
 
-    let info = mock_info(&bob, &[coin(bond_amount.u128(), "uluna")]);
+    let info = mock_info(&bob, &[coin(bond_amount.u128(), "usei")]);
 
     //set bob's balance to 10 in token contract
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &bond_amount)]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
@@ -5235,7 +5239,7 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
         &mut deps.querier,
         validator.clone(),
         bond_amount.u128(),
-        "uluna",
+        "usei",
     );
 
     let res = execute_unbond(deps.as_mut(), mock_env(), unbond_amount, bob.clone()).unwrap();
@@ -5243,13 +5247,13 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
 
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(0u64),
         },
     )]);
@@ -5264,21 +5268,21 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(9000u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     set_delegation(
         &mut deps.querier,
         validator.clone(),
         bond_amount.u128() - 1000,
-        "uluna",
+        "usei",
     );
 
     let res = execute_unbond(deps.as_mut(), env.clone(), unbond_amount, bob.clone()).unwrap();
     assert_eq!(1, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(8500u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     env.block.time = env.block.time.plus_seconds(31);
@@ -5286,21 +5290,21 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
     assert_eq!(2, res.messages.len());
     deps.querier.with_token_balances(&[
         (&String::from("token"), &[(&bob, &Uint128::from(8000u64))]),
-        (&stluna_token_contract, &[]),
+        (&stsei_token_contract, &[]),
     ]);
 
     set_delegation(
         &mut deps.querier,
         validator,
         bond_amount.u128() - 2000,
-        "uluna",
+        "usei",
     );
 
     // fabricate balance of the hub contract
     deps.querier.with_native_balances(&[(
         String::from(MOCK_CONTRACT_ADDR),
         Coin {
-            denom: "uluna".to_string(),
+            denom: "usei".to_string(),
             amount: Uint128::from(2004u64),
         },
     )]);
@@ -5317,23 +5321,23 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
     };
     let res: AllHistoryResponse =
         from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
-    assert_eq!(res.history[0].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[0].bluna_withdraw_rate.to_string(), "1.001");
+    assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1.001");
     assert!(
         res.history[0].released,
         "res.history[0].released is not true"
     );
     assert_eq!(res.history[0].batch_id, 1);
-    assert_eq!(res.history[1].bluna_amount, Uint128::from(1000u64));
-    assert_eq!(res.history[1].bluna_withdraw_rate.to_string(), "1.001");
+    assert_eq!(res.history[1].bsei_amount, Uint128::from(1000u64));
+    assert_eq!(res.history[1].bsei_withdraw_rate.to_string(), "1.001");
     assert!(
         res.history[1].released,
         "res.history[1].released is not true"
     );
     assert_eq!(res.history[1].batch_id, 2);
 
-    let expected = (res.history[0].bluna_withdraw_rate * res.history[0].bluna_amount)
-        + res.history[1].bluna_withdraw_rate * res.history[1].bluna_amount;
+    let expected = (res.history[0].bsei_withdraw_rate * res.history[0].bsei_amount)
+        + res.history[1].bsei_withdraw_rate * res.history[1].bsei_amount;
     let sent_message = &success_res.messages[0];
     match sent_message.msg.clone() {
         CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {

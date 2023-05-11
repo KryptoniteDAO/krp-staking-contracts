@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::hub::Config;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
+use sei_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, SeiQueryWrapper, TerraRoute};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
@@ -54,14 +54,14 @@ pub(crate) fn caps_to_map(caps: &[(&String, &Uint128)]) -> HashMap<String, Uint1
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<TerraQueryWrapper>,
+    base: MockQuerier<SeiQueryWrapper>,
     tax_querier: TaxQuerier,
 }
 
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<SeiQueryWrapper> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
@@ -75,9 +75,9 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn handle_query(&self, request: &QueryRequest<SeiQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
+            QueryRequest::Custom(SeiQueryWrapper { route, query_data }) => {
                 if &TerraRoute::Treasury == route {
                     match query_data {
                         TerraQuery::TaxRate {} => {
@@ -177,7 +177,7 @@ pub struct TokenQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(base: MockQuerier<TerraQueryWrapper>, _api: A) -> Self {
+    pub fn new<A: Api>(base: MockQuerier<SeiQueryWrapper>, _api: A) -> Self {
         WasmMockQuerier {
             base,
             tax_querier: TaxQuerier::default(),

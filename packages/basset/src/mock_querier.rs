@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use crate::hub::Config;
 use schemars::JsonSchema;
-use sei_cosmwasm::{SeiQueryWrapper};
+use sei_cosmwasm::SeiQueryWrapper;
 use serde::{Deserialize, Serialize};
 
 pub fn mock_dependencies(

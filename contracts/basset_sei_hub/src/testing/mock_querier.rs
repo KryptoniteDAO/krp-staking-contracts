@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api, BalanceResponse,
@@ -21,27 +22,26 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::to_length_prefixed;
 use cw20_base::state::{MinterData, TokenInfo};
-use lido_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 use std::collections::HashMap;
 
 use basset::hub::Config;
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg};
+use sei_cosmwasm::{SeiQuery, SeiQueryWrapper, SeiRoute};
 use serde::de::DeserializeOwned;
-use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 
 pub const VALIDATORS_REGISTRY: &str = "validators_registry";
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = MOCK_CONTRACT_ADDR;
     let custom_querier: WasmMockQuerier =
-        WasmMockQuerier::new(MockQuerier::new(&[(contract_addr, contract_balance)]));
+        WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
     OwnedDeps {
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: custom_querier,
+        custom_query_type: Default::default(),
     }
 }
 
@@ -69,7 +69,7 @@ pub(crate) fn _caps_to_map(caps: &[(&String, &Uint128)]) -> HashMap<String, Uint
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<TerraQueryWrapper>,
+    base: MockQuerier<SeiQueryWrapper>,
     token_querier: TokenQuerier,
     balance_querier: BalanceQuerier,
     tax_querier: TaxQuerier,
@@ -79,13 +79,13 @@ pub struct WasmMockQuerier {
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<SeiQueryWrapper> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return QuerierResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
-                })
+                });
             }
         };
         self.handle_query(&request)
@@ -93,33 +93,33 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn handle_query(&self, request: &QueryRequest<SeiQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
-                if &TerraRoute::Treasury == route {
-                    match query_data {
-                        TerraQuery::TaxRate {} => {
-                            let res = TaxRateResponse {
-                                rate: self.tax_querier.rate,
-                            };
-                            QuerierResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        TerraQuery::TaxCap { denom } => {
-                            let cap = self
-                                .tax_querier
-                                .caps
-                                .get(denom)
-                                .copied()
-                                .unwrap_or_default();
-                            let res = TaxCapResponse { cap };
-                            QuerierResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        _ => panic!("DO NOT ENTER HERE"),
-                    }
-                } else {
-                    panic!("DO NOT ENTER HERE")
-                }
-            }
+            // QueryRequest::Custom(SeiQueryWrapper { route, query_data }) => {
+            //     if &SeiRoute::Treasury == route {
+            //         match query_data {
+            //             SeiQuery::TaxRate {} => {
+            //                 let res = TaxRateResponse {
+            //                     rate: self.tax_querier.rate,
+            //                 };
+            //                 QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //             }
+            //             SeiQuery::TaxCap { denom } => {
+            //                 let cap = self
+            //                     .tax_querier
+            //                     .caps
+            //                     .get(denom)
+            //                     .copied()
+            //                     .unwrap_or_default();
+            //                 let res = TaxCapResponse { cap };
+            //                 QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //             }
+            //             _ => panic!("DO NOT ENTER HERE"),
+            //         }
+            //     } else {
+            //         panic!("DO NOT ENTER HERE")
+            //     }
+            // }
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 if contract_addr == VALIDATORS_REGISTRY {
                     let mut validators = self.validators.clone();
@@ -138,7 +138,7 @@ impl WasmMockQuerier {
                                             contract_addr
                                         ),
                                         request: msg.as_slice().into(),
-                                    })
+                                    });
                                 }
                             };
                         let mut total_supply = Uint128::zero();
@@ -147,8 +147,8 @@ impl WasmMockQuerier {
                             total_supply += *balance.1;
                         }
                         let token_inf: TokenInfo = TokenInfo {
-                            name: "bluna".to_string(),
-                            symbol: "BLUNA".to_string(),
+                            name: "bsei".to_string(),
+                            symbol: "BSEI".to_string(),
                             decimals: 6,
                             total_supply,
                             mint: Some(MinterData {
@@ -169,7 +169,7 @@ impl WasmMockQuerier {
                                             contract_addr
                                         ),
                                         request: msg.as_slice().into(),
-                                    })
+                                    });
                                 }
                             };
 
@@ -203,20 +203,26 @@ impl WasmMockQuerier {
                     let config = Config {
                         creator: api.addr_canonicalize(&String::from("owner1")).unwrap(),
                         reward_dispatcher_contract: Some(
-                            api.addr_canonicalize(&String::from("reward")).unwrap(),
+                            api.addr_canonicalize(&String::from("reward_dispatcher"))
+                                .unwrap(),
                         ),
-                        bluna_token_contract: Some(
+                        bsei_token_contract: Some(
                             api.addr_canonicalize(&String::from("token")).unwrap(),
                         ),
                         validators_registry_contract: Some(
                             api.addr_canonicalize(&String::from("validators")).unwrap(),
                         ),
-                        stluna_token_contract: Some(
-                            api.addr_canonicalize(&String::from("stluna_token"))
-                                .unwrap(),
+                        stsei_token_contract: Some(
+                            api.addr_canonicalize(&String::from("stsei_token")).unwrap(),
                         ),
                         airdrop_registry_contract: Some(
                             api.addr_canonicalize(&String::from("airdrop")).unwrap(),
+                        ),
+                        stable_contract: Some(
+                            api.addr_canonicalize(&String::from("stable")).unwrap(),
+                        ),
+                        rewards_contract: Some(
+                            api.addr_canonicalize(&String::from("rewards")).unwrap(),
                         ),
                     };
                     QuerierResult::Ok(ContractResult::from(to_binary(
@@ -229,11 +235,11 @@ impl WasmMockQuerier {
             QueryRequest::Bank(BankQuery::AllBalances { address }) => {
                 if address == &String::from("reward") {
                     let mut coins: Vec<Coin> = vec![];
-                    let luna = Coin {
-                        denom: "uluna".to_string(),
+                    let sei = Coin {
+                        denom: "usei".to_string(),
                         amount: Uint128::from(1000u128),
                     };
-                    coins.push(luna);
+                    coins.push(sei);
                     let krt = Coin {
                         denom: "ukrt".to_string(),
                         amount: Uint128::from(1000u128),
@@ -251,7 +257,7 @@ impl WasmMockQuerier {
                 }
             }
             QueryRequest::Bank(BankQuery::Balance { address, denom }) => {
-                if address == &String::from(MOCK_CONTRACT_ADDR) && denom == "uluna" {
+                if address == &String::from(MOCK_CONTRACT_ADDR) && denom == "usei" {
                     match self
                         .balance_querier
                         .balances
@@ -379,7 +385,7 @@ pub(crate) fn balances_to_map(
 }
 
 impl WasmMockQuerier {
-    pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
+    pub fn new(base: MockQuerier<SeiQueryWrapper>) -> Self {
         WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),

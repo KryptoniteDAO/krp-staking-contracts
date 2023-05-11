@@ -126,7 +126,7 @@ fn calc_range_start(api: &dyn Api, start_after: Option<Addr>) -> StdResult<Optio
 mod test {
     use super::*;
 
-    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::testing::{mock_dependencies, mock_dependencies_with_balance};
     use cosmwasm_std::{Api, StdResult, Storage};
     use cosmwasm_storage::{
         bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket,
@@ -162,7 +162,7 @@ mod test {
 
     #[test]
     fn state_legacy_compatibility() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies_with_balance(&[]);
         store_state(
             &mut deps.storage,
             &State {
@@ -181,10 +181,11 @@ mod test {
 
     #[test]
     fn config_legacy_compatibility() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies_with_balance(&[]);
         store_legacy_config(
             &mut deps.storage,
             &Config {
+                owner: deps.api.addr_canonicalize("owner1").unwrap(),
                 hub_contract: deps.api.addr_canonicalize("hub").unwrap(),
                 reward_denom: "".to_string(),
             },
@@ -199,7 +200,7 @@ mod test {
 
     #[test]
     fn holders_legacy_compatibility() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies_with_balance(&[]);
         let mut balances = legacy_holders(&mut deps.storage);
         let addr1 = deps.api.addr_canonicalize("addr0000").unwrap();
         let key1 = addr1.as_slice();

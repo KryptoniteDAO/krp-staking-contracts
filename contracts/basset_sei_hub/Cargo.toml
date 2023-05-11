@@ -48,6 +48,7 @@ basset = { path = "../../packages/basset", default-features = false, version = "
 signed_integer = { path = "../../packages/signed_integers", default-features = false, version = "0.1.0"}
 basset_sei_validators_registry = {path = "../basset_sei_validators_registry", features = ["library"]}
 cosmwasm-bignumber =  { path = "../../packages/bignumber", version = "3.0.0"}
+sei-cosmwasm = "0.4.10"
 
 [dev-dependencies]
 cosmwasm-schema = "1.0.0"

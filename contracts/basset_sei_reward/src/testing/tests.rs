@@ -35,7 +35,6 @@ use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     from_binary, Api, BankMsg, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128,
 };
-use terra_cosmwasm::create_swap_msg;
 
 use crate::contract::{execute, instantiate, query};
 use crate::math::{decimal_multiplication_in_256, decimal_subtraction_in_256};
@@ -76,6 +75,7 @@ fn proper_init() {
         ConfigResponse {
             hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
             reward_denom: DEFAULT_REWARD_DENOM.to_string(),
+            owner: "addr0000".to_string(),
         }
     );
 
@@ -91,67 +91,67 @@ fn proper_init() {
     );
 }
 
-#[test]
-pub fn swap_to_reward_denom() {
-    let mut deps = mock_dependencies(&[
-        Coin {
-            denom: "uusd".to_string(),
-            amount: Uint128::new(100u128),
-        },
-        Coin {
-            denom: "ukrw".to_string(),
-            amount: Uint128::new(1000u128),
-        },
-        Coin {
-            denom: "usdr".to_string(),
-            amount: Uint128::new(50u128),
-        },
-        Coin {
-            denom: "mnt".to_string(),
-            amount: Uint128::new(50u128),
-        },
-        Coin {
-            denom: "uinr".to_string(),
-            amount: Uint128::new(50u128),
-        },
-    ]);
-
-    let init_msg = default_init();
-    let info = mock_info("addr0000", &[]);
-
-    instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
-
-    let info = mock_info(String::from(MOCK_REWARDS_DISPATCHER_ADDR).as_str(), &[]);
-    let msg = ExecuteMsg::SwapToRewardDenom {};
-
-    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(
-        res.messages,
-        vec![
-            SubMsg::new(create_swap_msg(
-                Coin {
-                    denom: "ukrw".to_string(),
-                    amount: Uint128::new(1000u128),
-                },
-                DEFAULT_REWARD_DENOM.to_string()
-            )),
-            SubMsg::new(create_swap_msg(
-                Coin {
-                    denom: "usdr".to_string(),
-                    amount: Uint128::new(50u128)
-                },
-                DEFAULT_REWARD_DENOM.to_string()
-            )),
-            SubMsg::new(create_swap_msg(
-                Coin {
-                    denom: "uinr".to_string(),
-                    amount: Uint128::new(50u128)
-                },
-                DEFAULT_REWARD_DENOM.to_string()
-            )),
-        ]
-    );
-}
+// #[test]
+// pub fn swap_to_reward_denom() {
+//     let mut deps = mock_dependencies(&[
+//         Coin {
+//             denom: "uusd".to_string(),
+//             amount: Uint128::new(100u128),
+//         },
+//         Coin {
+//             denom: "ukrw".to_string(),
+//             amount: Uint128::new(1000u128),
+//         },
+//         Coin {
+//             denom: "usdr".to_string(),
+//             amount: Uint128::new(50u128),
+//         },
+//         Coin {
+//             denom: "mnt".to_string(),
+//             amount: Uint128::new(50u128),
+//         },
+//         Coin {
+//             denom: "uinr".to_string(),
+//             amount: Uint128::new(50u128),
+//         },
+//     ]);
+//
+//     let init_msg = default_init();
+//     let info = mock_info("addr0000", &[]);
+//
+//     instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+//
+//     let info = mock_info(String::from(MOCK_REWARDS_DISPATCHER_ADDR).as_str(), &[]);
+//     let msg = ExecuteMsg::SwapToRewardDenom {};
+//
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+//     assert_eq!(
+//         res.messages,
+//         vec![
+//             SubMsg::new(create_swap_msg(
+//                 Coin {
+//                     denom: "ukrw".to_string(),
+//                     amount: Uint128::new(1000u128),
+//                 },
+//                 DEFAULT_REWARD_DENOM.to_string()
+//             )),
+//             SubMsg::new(create_swap_msg(
+//                 Coin {
+//                     denom: "usdr".to_string(),
+//                     amount: Uint128::new(50u128)
+//                 },
+//                 DEFAULT_REWARD_DENOM.to_string()
+//             )),
+//             SubMsg::new(create_swap_msg(
+//                 Coin {
+//                     denom: "uinr".to_string(),
+//                     amount: Uint128::new(50u128)
+//                 },
+//                 DEFAULT_REWARD_DENOM.to_string()
+//             )),
+//         ]
+//     );
+// }
 
 #[test]
 fn update_global_index() {
@@ -504,7 +504,8 @@ fn claim_rewards() {
             to_address: String::from("addr0000"),
             amount: vec![Coin {
                 denom: "uusd".to_string(),
-                amount: Uint128::from(99u128), // 1% tax
+                // amount: Uint128::from(99u128), // 1% tax
+                amount: Uint128::from(100u128),
             },]
         }))]
     );
@@ -527,7 +528,8 @@ fn claim_rewards() {
             to_address: String::from("addr0001"),
             amount: vec![Coin {
                 denom: "uusd".to_string(),
-                amount: Uint128::from(99u128), // 1% tax
+                // amount: Uint128::from(99u128), // 1% tax
+                amount: Uint128::from(100u128), // 1% tax
             },]
         }))]
     );
@@ -588,7 +590,8 @@ fn claim_rewards_with_decimals() {
             to_address: String::from("addr0000"),
             amount: vec![Coin {
                 denom: "uusd".to_string(),
-                amount: Uint128::from(99007u128), // 1% tax
+                // amount: Uint128::from(99007u128), // 1% tax
+                amount: Uint128::from(99998u128),
             },]
         }))]
     );

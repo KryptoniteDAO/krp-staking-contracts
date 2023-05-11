@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use basset::hub::ConfigResponse;
+use basset_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_slice, to_binary, Api, Coin, ContractResult, Decimal, Empty, OwnedDeps, Querier,
     QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
 };
-use lido_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
 
 pub const MOCK_OWNER_ADDR: &str = "owner";
 pub const MOCK_HUB_CONTRACT_ADDR: &str = "hub";
@@ -32,7 +32,8 @@ pub const MOCK_LIDO_FEE_ADDRESS: &str = "lido_fee";
 pub fn mock_dependencies(
     contract_balance: &[Coin],
 ) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
-    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
+    let custom_querier: WasmMockQuerier =
+        WasmMockQuerier::new(MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]));
 
     OwnedDeps {
         storage: MockStorage::default(),
@@ -55,7 +56,7 @@ impl Querier for WasmMockQuerier {
                 return SystemResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
-                })
+                });
             }
         };
         self.handle_query(&request)
@@ -85,7 +86,7 @@ impl WasmMockQuerier {
                         token_contract: Some(String::from(MOCK_TOKEN_CONTRACT_ADDR)),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
-                } else if contract_addr == MOCK_REWARDS_DISPATCHER_CONTRACT_ADDR {
+                } else if contract_addr == MOCK_REWARD_DISPATCHER_CONTRACT_ADDR {
                     let api: MockApi = MockApi::default();
 
                     let config = RewardsDispatcherConfig {
@@ -95,15 +96,15 @@ impl WasmMockQuerier {
                         hub_contract: api
                             .addr_canonicalize(&String::from(MOCK_HUB_CONTRACT_ADDR))
                             .unwrap(),
-                        bluna_reward_contract: api
+                        bsei_reward_contract: api
                             .addr_canonicalize(&String::from(MOCK_REWARDS_CONTRACT_ADDR))
                             .unwrap(),
-                        stluna_reward_denom: "uluna".to_string(),
-                        bluna_reward_denom: "uusd".to_string(),
+                        stsei_reward_denom: "usei".to_string(),
                         lido_fee_address: api
                             .addr_canonicalize(&String::from(MOCK_LIDO_FEE_ADDRESS))
                             .unwrap(),
                         lido_fee_rate: Decimal::from_ratio(5u128, 100u128),
+                        bsei_reward_denom: "uusd".to_string(),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
                 } else {
