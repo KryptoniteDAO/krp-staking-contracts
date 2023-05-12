@@ -30,31 +30,24 @@
 //!          //...
 //!      });
 //! 4. Anywhere you see query(deps.as_ref(), ...) you must replace it with query(deps.as_mut(), ...)
-use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
-use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
+use std::borrow::BorrowMut;
+use std::str::FromStr;
+
+use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{
     coin, coins, from_binary, to_binary, to_vec, Addr, Api, BankMsg, Coin, CosmosMsg, Decimal,
     DepsMut, DistributionMsg, Env, FullDelegation, MessageInfo, OwnedDeps, Querier, QueryRequest,
     Response, StakingMsg, StdError, StdResult, Storage, Uint128, Validator, WasmMsg, WasmQuery,
 };
+use cosmwasm_storage::Bucket;
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use cw20_base::msg::ExecuteMsg::{Burn, Mint};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::testing::{mock_env, mock_info};
-
-use crate::contract::{execute, instantiate, query};
-use crate::unbond::{execute_unbond, execute_unbond_stsei};
-
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw20_base::msg::ExecuteMsg::{Burn, Mint};
-
-use super::mock_querier::{mock_dependencies as dependencies, WasmMockQuerier};
-use crate::math::decimal_division;
-use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE};
-use basset::airdrop::PairHandleMsg;
-use basset_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
-
 use basset::airdrop::ExecuteMsg::{FabricateANCClaim, FabricateMIRClaim};
+use basset::airdrop::PairHandleMsg;
 use basset::hub::Cw20HookMsg::Unbond;
 use basset::hub::ExecuteMsg::{CheckSlashing, Receive, UpdateConfig, UpdateParams};
 use basset::hub::QueryMsg::{
@@ -66,10 +59,16 @@ use basset::hub::{
     InstantiateMsg, Parameters, StateResponse, UnbondRequestsResponse, UnbondWaitEntity,
     WithdrawableUnbondedResponse,
 };
-use cosmwasm_std::testing::{MockApi, MockStorage};
-use cosmwasm_storage::Bucket;
-use std::borrow::BorrowMut;
-use std::str::FromStr;
+use basset_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
+use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
+use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
+
+use crate::contract::{execute, instantiate, query};
+use crate::math::decimal_division;
+use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE};
+use crate::unbond::{execute_unbond, execute_unbond_stsei};
+
+use super::mock_querier::{mock_dependencies as dependencies, WasmMockQuerier};
 
 const DEFAULT_VALIDATOR: &str = "default-validator";
 const DEFAULT_VALIDATOR2: &str = "default-validator2000";
@@ -125,7 +124,6 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
         bsei_token_contract: Some(bsei_token_contract),
         stsei_token_contract: Some(stsei_token_contract),
         airdrop_registry_contract: Some(String::from("airdrop_registry")),
-        stable_contract: Some(String::from("stable")),
         validators_registry_contract: Some(String::from("validators_registry")),
         rewards_contract: Some(String::from("rewards")),
     };
@@ -1906,7 +1904,7 @@ pub fn proper_slashing() {
                 msg,
                 to_binary(&Mint {
                     recipient: info.sender.to_string(),
-                    amount: Uint128::from(1111u64)
+                    amount: Uint128::from(1111u64),
                 })
                 .unwrap()
             );
@@ -2087,7 +2085,7 @@ pub fn proper_slashing_stsei() {
                 msg,
                 to_binary(&Mint {
                     recipient: info.sender.to_string(),
-                    amount: Uint128::from(1000u64)
+                    amount: Uint128::from(1000u64),
                 })
                 .unwrap()
             );
@@ -2356,7 +2354,7 @@ pub fn proper_withdraw_unbonded() {
         query_unbond,
         UnbondRequestsResponse {
             address: bob,
-            requests: vec![]
+            requests: vec![],
         }
     );
 
@@ -2563,7 +2561,7 @@ pub fn proper_withdraw_unbonded_stsei() {
         query_unbond,
         UnbondRequestsResponse {
             address: bob,
-            requests: vec![]
+            requests: vec![],
         }
     );
 
@@ -2767,7 +2765,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         query_unbond,
         UnbondRequestsResponse {
             address: bob,
-            requests: vec![]
+            requests: vec![],
         }
     );
 
@@ -4181,7 +4179,6 @@ pub fn proper_update_config() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -4196,7 +4193,6 @@ pub fn proper_update_config() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -4240,7 +4236,6 @@ pub fn proper_update_config() {
         rewards_dispatcher_contract: Some(String::from("new reward")),
         bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -4267,7 +4262,6 @@ pub fn proper_update_config() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: Some(String::from("new token")),
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -4276,7 +4270,7 @@ pub fn proper_update_config() {
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("updating bsei token address is forbidden",)
+        StdError::generic_err("updating bsei token address is forbidden")
     );
 
     let config = Config {};
@@ -4299,7 +4293,6 @@ pub fn proper_update_config() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: Some(String::from("new airdrop")),
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -4320,7 +4313,6 @@ pub fn proper_update_config() {
         owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: Some(String::from("new registry")),
         bsei_token_contract: None,
         stsei_token_contract: None,
@@ -4342,7 +4334,6 @@ pub fn proper_update_config() {
         owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         bsei_token_contract: None,
         stsei_token_contract: Some(stsei_token_contract.clone()),
@@ -4352,7 +4343,7 @@ pub fn proper_update_config() {
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("updating stsei token address is forbidden",)
+        StdError::generic_err("updating stsei token address is forbidden")
     );
 
     let config = Config {};
@@ -5089,7 +5080,6 @@ pub fn test_pause() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -5118,7 +5108,6 @@ pub fn test_pause() {
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
-        stable_contract: None,
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
@@ -5161,7 +5150,7 @@ pub fn test_pause() {
     let res = execute(deps.as_mut(), mock_env(), creator_info, update_prams);
     assert_eq!(
         res.unwrap_err(),
-        StdError::generic_err("cannot unpause contract with old unbond wait lists",)
+        StdError::generic_err("cannot unpause contract with old unbond wait lists")
     );
 
     // try to un-pause the contract with None (should fail)

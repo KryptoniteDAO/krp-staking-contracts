@@ -53,7 +53,6 @@ pub struct Config {
     pub bsei_token_contract: Option<CanonicalAddr>,
     pub stsei_token_contract: Option<CanonicalAddr>,
     pub airdrop_registry_contract: Option<CanonicalAddr>,
-    pub stable_contract: Option<CanonicalAddr>,
     pub rewards_contract: Option<CanonicalAddr>,
 }
 
@@ -106,7 +105,6 @@ pub enum ExecuteMsg {
         bsei_token_contract: Option<String>,
         stsei_token_contract: Option<String>,
         airdrop_registry_contract: Option<String>,
-        stable_contract: Option<String>,
         rewards_contract: Option<String>,
     },
 
@@ -156,18 +154,24 @@ pub enum ExecuteMsg {
     /// internal operations
     ///////////////////
     ClaimAirdrop {
-        airdrop_token_contract: String, // Contract address of MIR Cw20 Token
-        airdrop_contract: String,       // Contract address of MIR Airdrop
-        airdrop_swap_contract: String,  // E.g. Contract address of MIR <> UST Terraswap Pair
-        claim_msg: Binary,              // Base64-encoded JSON of MIRAirdropHandleMsg::Claim
-        swap_msg: Binary,               // Base64-encoded string of JSON of PairHandleMsg::Swap
+        airdrop_token_contract: String,
+        // Contract address of MIR Cw20 Token
+        airdrop_contract: String,
+        // Contract address of MIR Airdrop
+        airdrop_swap_contract: String,
+        // E.g. Contract address of MIR <> UST Terraswap Pair
+        claim_msg: Binary,
+        // Base64-encoded JSON of MIRAirdropHandleMsg::Claim
+        swap_msg: Binary, // Base64-encoded string of JSON of PairHandleMsg::Swap
     },
 
     /// Swaps claimed airdrop tokens to UST through Terraswap & sends resulting UST to bsei Reward contract
     SwapHook {
-        airdrop_token_contract: String, // E.g. contract address of MIR Token
-        airdrop_swap_contract: String,  // E.g. Contract address of MIR <> UST Terraswap Pair
-        swap_msg: Binary,               // E.g. Base64-encoded JSON of PairHandleMsg::Swap
+        airdrop_token_contract: String,
+        // E.g. contract address of MIR Token
+        airdrop_swap_contract: String,
+        // E.g. Contract address of MIR <> UST Terraswap Pair
+        swap_msg: Binary, // E.g. Base64-encoded JSON of PairHandleMsg::Swap
     },
 
     RedelegateProxy {
@@ -192,6 +196,7 @@ pub enum Cw20HookMsg {
     //     airdrop_hooks: Option<Vec<Binary>>,
     // },
 }
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Parameters {
     pub epoch_period: u64,
@@ -308,6 +313,7 @@ pub struct CurrentBatchResponse {
 pub struct WithdrawableUnbondedResponse {
     pub withdrawable: Uint128,
 }
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct UnbondRequestsResponse {
     pub address: String,

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_slice, to_binary, AllBalanceResponse, Api, BalanceResponse, BankQuery, CanonicalAddr,
@@ -5,12 +7,11 @@ use cosmwasm_std::{
     SystemResult, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
-use std::collections::HashMap;
-
-use crate::hub::Config;
 use schemars::JsonSchema;
 use sei_cosmwasm::SeiQueryWrapper;
 use serde::{Deserialize, Serialize};
+
+use crate::hub::Config;
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
@@ -98,9 +99,6 @@ impl WasmMockQuerier {
                         ),
                         airdrop_registry_contract: Some(
                             api.addr_canonicalize(&String::from("airdrop")).unwrap(),
-                        ),
-                        stable_contract: Some(
-                            api.addr_canonicalize(&String::from("stable")).unwrap(),
                         ),
                         stsei_token_contract: Some(
                             api.addr_canonicalize(&String::from("stsei_token")).unwrap(),

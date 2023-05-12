@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
+use std::collections::HashMap;
+
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api, BalanceResponse,
@@ -21,13 +22,13 @@ use cosmwasm_std::{
     Validator, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
-use cw20_base::state::{MinterData, TokenInfo};
-use std::collections::HashMap;
-
-use basset::hub::Config;
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg};
+use cw20_base::state::{MinterData, TokenInfo};
 use sei_cosmwasm::{SeiQuery, SeiQueryWrapper, SeiRoute};
 use serde::de::DeserializeOwned;
+
+use basset::hub::Config;
+use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
 
 pub const VALIDATORS_REGISTRY: &str = "validators_registry";
 
@@ -217,9 +218,6 @@ impl WasmMockQuerier {
                         ),
                         airdrop_registry_contract: Some(
                             api.addr_canonicalize(&String::from("airdrop")).unwrap(),
-                        ),
-                        stable_contract: Some(
-                            api.addr_canonicalize(&String::from("stable")).unwrap(),
                         ),
                         rewards_contract: Some(
                             api.addr_canonicalize(&String::from("rewards")).unwrap(),

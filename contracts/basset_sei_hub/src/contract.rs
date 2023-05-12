@@ -14,23 +14,13 @@
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
 use cosmwasm_std::{
     attr, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
     DistributionMsg, Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult,
     Uint128, WasmMsg, WasmQuery,
 };
+use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
-use crate::config::{execute_update_config, execute_update_params};
-use crate::state::{
-    all_unbond_history, get_unbond_requests, migrate_unbond_history, migrate_unbond_wait_lists,
-    query_get_finished_amount, read_validators, remove_whitelisted_validators_store, CONFIG,
-    CURRENT_BATCH, OLD_CONFIG, OLD_CURRENT_BATCH, OLD_STATE, PARAMETERS, STATE,
-};
-use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
-
-use crate::bond::execute_bond;
-use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use basset::hub::ExecuteMsg::SwapHook;
 use basset::hub::{
     AllHistoryResponse, BondType, Config, ConfigResponse, CurrentBatch, CurrentBatchResponse,
@@ -41,7 +31,16 @@ use basset::hub::{Cw20HookMsg, ExecuteMsg};
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
 use basset_sei_validators_registry::msg::ExecuteMsg::AddValidator;
 use basset_sei_validators_registry::registry::Validator;
-use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
+
+use crate::bond::execute_bond;
+use crate::config::{execute_update_config, execute_update_params};
+use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
+use crate::state::{
+    all_unbond_history, get_unbond_requests, migrate_unbond_history, migrate_unbond_wait_lists,
+    query_get_finished_amount, read_validators, remove_whitelisted_validators_store, CONFIG,
+    CURRENT_BATCH, OLD_CONFIG, OLD_CURRENT_BATCH, OLD_STATE, PARAMETERS, STATE,
+};
+use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -61,7 +60,6 @@ pub fn instantiate(
         bsei_token_contract: None,
         airdrop_registry_contract: None,
         stsei_token_contract: None,
-        stable_contract: None,
         rewards_contract: None,
     };
     CONFIG.save(deps.storage, &data)?;
@@ -172,7 +170,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             airdrop_registry_contract,
             validators_registry_contract,
             stsei_token_contract,
-            stable_contract,
             rewards_contract,
         } => execute_update_config(
             deps,
@@ -184,7 +181,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             stsei_token_contract,
             airdrop_registry_contract,
             validators_registry_contract,
-            stable_contract,
             rewards_contract,
         ),
         ExecuteMsg::SwapHook {
@@ -812,7 +808,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         bsei_token_contract: old_config.token_contract,
         stsei_token_contract: Some(deps.api.addr_canonicalize(&msg.stsei_token_contract)?),
         airdrop_registry_contract: old_config.airdrop_registry_contract,
-        stable_contract: Some(deps.api.addr_canonicalize(&msg.stable_contract)?),
         rewards_contract: Some(deps.api.addr_canonicalize(&msg.rewards_contract)?),
     };
     CONFIG.save(deps.storage, &new_config)?;

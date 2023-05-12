@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::state::{read_old_unbond_wait_lists, CONFIG, PARAMETERS};
-use basset::hub::Parameters;
 use cosmwasm_std::{
     attr, CosmosMsg, Decimal, DepsMut, DistributionMsg, Env, MessageInfo, Response, StdError,
     StdResult,
 };
+
+use basset::hub::Parameters;
+
+use crate::state::{read_old_unbond_wait_lists, CONFIG, PARAMETERS};
 
 /// Update general parameters
 /// Only creator/owner is allowed to execute
@@ -87,7 +89,6 @@ pub fn execute_update_config(
     stsei_token_contract: Option<String>,
     airdrop_registry_contract: Option<String>,
     validators_registry_contract: Option<String>,
-    stable_contract: Option<String>,
     rewards_contract: Option<String>,
 ) -> StdResult<Response> {
     // only owner must be able to send this message.
@@ -167,13 +168,13 @@ pub fn execute_update_config(
         })?;
     }
 
-    if let Some(stable_token) = stable_contract {
-        let stable_raw = deps.api.addr_canonicalize(&stable_token)?;
-        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.stable_contract = Some(stable_raw);
-            Ok(last_config)
-        })?;
-    }
+    // if let Some(stable_token) = stable_contract {
+    //     let stable_raw = deps.api.addr_canonicalize(&stable_token)?;
+    //     CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
+    //         last_config.stable_contract = Some(stable_raw);
+    //         Ok(last_config)
+    //     })?;
+    // }
 
     if let Some(rewards) = rewards_contract {
         let rewards_raw = deps.api.addr_canonicalize(&rewards)?;

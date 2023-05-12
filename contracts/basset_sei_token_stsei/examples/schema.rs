@@ -16,13 +16,13 @@ use std::env::current_dir;
 use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-
 use cw20::{
     AllAccountsResponse, AllAllowancesResponse, AllowanceResponse, BalanceResponse,
     TokenInfoResponse,
 };
 use cw20_base::msg::{ExecuteMsg, QueryMsg};
-use lido_sei_token_stluna::msg::TokenInitMsg;
+
+use basset_sei_token_stsei::msg::TokenInitMsg;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
