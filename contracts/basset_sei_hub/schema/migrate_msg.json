@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MigrateMsg",
+  "type": "object",
+  "required": [
+    "reward_dispatcher_contract",
+    "rewards_contract",
+    "stsei_token_contract",
+    "validators_registry_contract"
+  ],
+  "properties": {
+    "reward_dispatcher_contract": {
+      "type": "string"
+    },
+    "rewards_contract": {
+      "type": "string"
+    },
+    "stsei_token_contract": {
+      "type": "string"
+    },
+    "validators_registry_contract": {
+      "type": "string"
+    }
+  }
+}

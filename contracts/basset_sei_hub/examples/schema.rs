@@ -18,8 +18,8 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use basset::hub::{
-    AllHistoryResponse, Config, CurrentBatchResponse, ExecuteMsg, InstantiateMsg, Parameters,
-    QueryMsg, State, StateResponse, UnbondRequestsResponse, WithdrawableUnbondedResponse,
+    AllHistoryResponse, Config, CurrentBatchResponse, ExecuteMsg, InstantiateMsg, MigrateMsg,
+    Parameters, QueryMsg, State, StateResponse, UnbondRequestsResponse, WithdrawableUnbondedResponse,
 };
 
 fn main() {
@@ -31,6 +31,7 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
+    export_schema(&schema_for!(MigrateMsg), &out_dir);
     export_schema(&schema_for!(State), &out_dir);
     export_schema(&schema_for!(Config), &out_dir);
     export_schema(&schema_for!(Parameters), &out_dir);

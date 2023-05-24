@@ -49,16 +49,6 @@
         }
       ]
     },
-    "stable_contract": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/CanonicalAddr"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "stsei_token_contract": {
       "anyOf": [
         {

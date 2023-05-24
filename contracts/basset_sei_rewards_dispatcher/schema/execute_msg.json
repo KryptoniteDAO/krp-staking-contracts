@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExecuteMsg",
-  "anyOf": [
+  "oneOf": [
     {
       "type": "object",
       "required": [
@@ -11,14 +11,14 @@
         "swap_to_reward_denom": {
           "type": "object",
           "required": [
-            "bluna_total_bonded",
-            "stluna_total_bonded"
+            "bsei_total_bonded",
+            "stsei_total_bonded"
           ],
           "properties": {
-            "bluna_total_bonded": {
+            "bsei_total_bonded": {
               "$ref": "#/definitions/Uint128"
             },
-            "stluna_total_bonded": {
+            "stsei_total_bonded": {
               "$ref": "#/definitions/Uint128"
             }
           }
@@ -35,13 +35,13 @@
         "update_config": {
           "type": "object",
           "properties": {
-            "bluna_reward_contract": {
+            "bsei_reward_contract": {
               "type": [
                 "string",
                 "null"
               ]
             },
-            "bluna_reward_denom": {
+            "bsei_reward_denom": {
               "type": [
                 "string",
                 "null"
@@ -75,7 +75,7 @@
                 "null"
               ]
             },
-            "stluna_reward_denom": {
+            "stsei_reward_denom": {
               "type": [
                 "string",
                 "null"

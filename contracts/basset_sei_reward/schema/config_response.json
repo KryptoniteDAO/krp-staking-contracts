@@ -4,10 +4,14 @@
   "type": "object",
   "required": [
     "hub_contract",
+    "owner",
     "reward_denom"
   ],
   "properties": {
     "hub_contract": {
+      "type": "string"
+    },
+    "owner": {
       "type": "string"
     },
     "reward_denom": {

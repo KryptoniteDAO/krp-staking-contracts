@@ -42,12 +42,6 @@
                 "null"
               ]
             },
-            "stable_contract": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
             "stsei_token_contract": {
               "type": [
                 "string",

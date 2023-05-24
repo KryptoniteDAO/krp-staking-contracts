@@ -3,18 +3,18 @@
   "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "bluna_reward_contract",
-    "bluna_reward_denom",
+    "bsei_reward_contract",
+    "bsei_reward_denom",
     "hub_contract",
     "lido_fee_address",
     "lido_fee_rate",
-    "stluna_reward_denom"
+    "stsei_reward_denom"
   ],
   "properties": {
-    "bluna_reward_contract": {
+    "bsei_reward_contract": {
       "type": "string"
     },
-    "bluna_reward_denom": {
+    "bsei_reward_denom": {
       "type": "string"
     },
     "hub_contract": {
@@ -26,7 +26,7 @@
     "lido_fee_rate": {
       "$ref": "#/definitions/Decimal"
     },
-    "stluna_reward_denom": {
+    "stsei_reward_denom": {
       "type": "string"
     }
   },
