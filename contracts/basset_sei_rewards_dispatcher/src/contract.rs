@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::ops::Mul;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128, WasmMsg,
-};
+use cosmwasm_std::{attr, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, Coin, QueryRequest, WasmQuery, Fraction, Addr};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{Config, CONFIG};
 use basset::hub::ExecuteMsg::UpdateGlobalIndex;
+use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
+use basset::oracle_pyth::{QueryMsg as PythOracleQueryMsg};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -39,6 +39,9 @@ pub fn instantiate(
         stsei_reward_denom: msg.stsei_reward_denom,
         lido_fee_address: deps.api.addr_canonicalize(&msg.lido_fee_address)?,
         lido_fee_rate: msg.lido_fee_rate,
+        swap_contract: deps.api.addr_canonicalize(&msg.swap_contract)?,
+        swap_denoms: msg.swap_denoms,
+        oracle_contract: deps.api.addr_canonicalize(&msg.oracle_contract)?,
     };
 
     CONFIG.save(deps.storage, &conf)?;
@@ -162,186 +165,228 @@ pub fn execute_update_config(
 
 pub fn execute_swap(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
-    _bsei_total_bonded_amount: Uint128,
-    _stsei_total_bonded_amount: Uint128,
+    bsei_total_bonded_amount: Uint128,
+    stsei_total_bonded_amount: Uint128,
 ) -> StdResult<Response> {
     let config = CONFIG.load(deps.storage)?;
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
+    let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
+    let oracle_addr = deps.api.addr_humanize(&config.oracle_contract)?;
 
     if info.sender != hub_addr {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    //     let contr_addr = env.contract.address;
-    //     let balance = deps.querier.query_all_balances(contr_addr)?;
-    //     let (total_sei_rewards_available, total_ust_rewards_available, mut msgs) =
-    //         convert_to_target_denoms(
-    //             &deps,
-    //             balance.clone(),
-    //             config.stsei_reward_denom.clone(),
-    //             config.bsei_reward_denom.clone(),
-    //         )?;
+    let contr_addr = env.contract.address;
+    let balance = deps.querier.query_all_balances(contr_addr)?;
 
-    //     let (sei_2_ust_rewards_xchg_rate, ust_2_sei_rewards_xchg_rate) = get_exchange_rates(
-    //         &deps,
-    //         config.stsei_reward_denom.as_str(),
-    //         config.bsei_reward_denom.as_str(),
-    //     )?;
 
-    //     let (offer_coin, ask_denom) = get_swap_info(
-    //         config,
-    //         stsei_total_bonded_amount,
-    //         bsei_total_bonded_amount,
-    //         total_sei_rewards_available,
-    //         total_ust_rewards_available,
-    //         ust_2_sei_rewards_xchg_rate,
-    //         sei_2_ust_rewards_xchg_rate,
-    //     )?;
+    let (total_sei_rewards_available, total_ust_rewards_available, mut msgs) =
+        convert_to_target_denoms(
+            &deps,
+            balance.clone(),
+            config.clone(),
+            config.stsei_reward_denom.clone(),
+            config.bsei_reward_denom.clone(),
+        )?;
 
-    //     if !offer_coin.amount.is_zero() {
-    //         msgs.push(create_swap_msg(offer_coin.clone(), ask_denom.clone()));
-    //     }
+    let (sei_2_ust_rewards_xchg_rate, ust_2_sei_rewards_xchg_rate) = get_exchange_rates(
+        &deps,
+        &oracle_addr,
+        config.stsei_reward_denom.as_str(),
+        config.bsei_reward_denom.as_str(),
+    )?;
+
+    let (offer_coin, ask_denom) = get_swap_info(
+        config,
+        stsei_total_bonded_amount,
+        bsei_total_bonded_amount,
+        total_sei_rewards_available,
+        total_ust_rewards_available,
+        ust_2_sei_rewards_xchg_rate,
+        sei_2_ust_rewards_xchg_rate,
+    )?;
+
+    if !offer_coin.amount.is_zero() {
+        msgs.push(create_swap_msg(offer_coin.clone(), ask_denom.clone(), swap_addr.clone().to_string()));
+    }
 
     let res = Response::new().add_attributes(vec![
         attr("action", "swap"),
-        // attr("initial_balance", format!("{:?}", balance)),
-        // attr(
-        //     "sei_2_ust_rewards_xchg_rate",
-        //     sei_2_ust_rewards_xchg_rate.to_string(),
-        // ),
-        // attr(
-        //     "ust_2_sei_rewards_xchg_rate",
-        //     ust_2_sei_rewards_xchg_rate.to_string(),
-        // ),
-        // attr("total_sei_rewards_available", total_sei_rewards_available),
-        // attr("total_ust_rewards_available", total_ust_rewards_available),
-        // attr("offer_coin_denom", offer_coin.denom),
-        // attr("offer_coin_amount", offer_coin.amount),
-        // attr("ask_denom", ask_denom),
+        attr("initial_balance", format!("{:?}", balance)),
+        attr(
+            "sei_2_ust_rewards_xchg_rate",
+            sei_2_ust_rewards_xchg_rate.to_string(),
+        ),
+        attr(
+            "ust_2_sei_rewards_xchg_rate",
+            ust_2_sei_rewards_xchg_rate.to_string(),
+        ),
+        attr("total_sei_rewards_available", total_sei_rewards_available),
+        attr("total_ust_rewards_available", total_ust_rewards_available),
+        attr("offer_coin_denom", offer_coin.denom),
+        attr("offer_coin_amount", offer_coin.amount),
+        attr("ask_denom", ask_denom),
     ]);
 
     Ok(res)
 }
 
-// #[allow(clippy::needless_collect)]
-// pub(crate) fn convert_to_target_denoms(
-//     deps: &DepsMut,
-//     balance: Vec<Coin>,
-//     _denom_to_keep: String,
-//     _denom_to_xchg: String,
-// ) -> StdResult<(Uint128, Uint128, Vec<CosmosMsg>)> {
-//     // let terra_querier = TerraQuerier::new(&deps.querier);
-//     let mut total_sei_available: Uint128 = Uint128::zero();
-//     let mut total_usd_available: Uint128 = Uint128::zero();
+#[allow(clippy::needless_collect)]
+pub(crate) fn convert_to_target_denoms(
+    deps: &DepsMut,
+    balance: Vec<Coin>,
+    config: Config,
+    denom_to_keep: String,
+    denom_to_xchg: String,
+) -> StdResult<(Uint128, Uint128, Vec<CosmosMsg>)> {
+    let mut total_sei_available: Uint128 = Uint128::zero();
+    let mut total_usd_available: Uint128 = Uint128::zero();
 
-//     let _denoms: Vec<String> = balance.iter().map(|item| item.denom.clone()).collect();
-//     // let exchange_rates = query_exchange_rates(deps, denom_to_xchg.clone(), denoms)?;
-//     // let known_denoms: Vec<String> = exchange_rates
-//     //     .exchange_rates
-//     //     .iter()
-//     //     .map(|item| item.quote_denom.clone())
-//     //     .collect();
-//     let mut msgs: Vec<CosmosMsg> = Vec::new();
+    let _denoms: Vec<String> = balance.iter().map(|item| item.denom.clone()).collect();
 
-//     // for coin in balance {
-//     //     if !known_denoms.contains(&coin.denom) {
-//     //         continue;
-//     //     }
+    let known_denoms = config.swap_denoms;
+    let swap_contract = deps.api.addr_humanize(&config.swap_contract)?;
 
-//     //     if coin.denom == denom_to_keep {
-//     //         total_sei_available += coin.amount;
-//     //         continue;
-//     //     }
+    let mut msgs: Vec<CosmosMsg> = Vec::new();
 
-//     //     if coin.denom == denom_to_xchg {
-//     //         total_usd_available += coin.amount;
-//     //         continue;
-//     //     }
+    for coin in balance {
+        if !known_denoms.contains(&coin.denom) {
+            continue;
+        }
 
-//     //     let swap_response: SwapResponse =
-//     //         terra_querier.query_swap(coin.clone(), denom_to_xchg.as_str())?;
-//     //     total_usd_available += swap_response.receive.amount;
+        if coin.denom == denom_to_keep {
+            total_sei_available += coin.amount;
+            continue;
+        }
 
-//     //     msgs.push(create_swap_msg(coin, denom_to_xchg.to_string()));
-//     // }
+        if coin.denom == denom_to_xchg {
+            total_usd_available += coin.amount;
+            continue;
+        }
 
-//     Ok((total_sei_available, total_usd_available, msgs))
-// }
+        if !coin.amount.is_zero() {
+            let simulation_response = query_swap_simulation(
+                &deps,
+                swap_contract.to_string(),
+                coin.clone(),
+                denom_to_xchg.clone().to_string(),
+            )?;
 
-// pub(crate) fn query_exchange_rates(
-//     deps: &DepsMut,
-//     base_denom: String,
-//     quote_denoms: Vec<String>,
-// ) -> StdResult<ExchangeRatesResponse> {
-//     let querier = TerraQuerier::new(&deps.querier);
-//     let res: ExchangeRatesResponse = querier.query_exchange_rates(base_denom, quote_denoms)?;
-//     Ok(res)
-// }
+            total_usd_available += simulation_response.return_amount;
 
-// pub(crate) fn get_exchange_rates(
-//     deps: &DepsMut,
-//     denom_a: &str,
-//     denom_b: &str,
-// ) -> StdResult<(Decimal, Decimal)> {
-//     let terra_querier = TerraQuerier::new(&deps.querier);
-//     let a_2_b_xchg_rates = terra_querier
-//         .query_exchange_rates(denom_a.to_string(), vec![denom_b.to_string()])?
-//         .exchange_rates;
+            msgs.push(create_swap_msg(coin, denom_to_xchg.clone().to_string(), swap_contract.clone().to_string()));
+        }
+    }
 
-//     Ok((
-//         a_2_b_xchg_rates[0].exchange_rate,
-//         a_2_b_xchg_rates[0]
-//             .exchange_rate
-//             .inv()
-//             .ok_or_else(|| StdError::generic_err("failed to convert exchange rate"))?,
-//     ))
-// }
+    Ok((total_sei_available, total_usd_available, msgs))
+}
 
-// pub(crate) fn get_swap_info(
-//     config: Config,
-//     stsei_total_bonded_amount: Uint128,
-//     bsei_total_bonded_amount: Uint128,
-//     total_stsei_rewards_available: Uint128,
-//     total_bsei_rewards_available: Uint128,
-//     bsei_2_stsei_rewards_xchg_rate: Decimal,
-//     stsei_2_bsei_rewards_xchg_rate: Decimal,
-// ) -> StdResult<(Coin, String)> {
-//     // Total rewards in stsei rewards currency.
-//     let total_rewards_in_stsei_rewards = total_stsei_rewards_available
-//         + total_bsei_rewards_available.mul(bsei_2_stsei_rewards_xchg_rate);
 
-//     let stsei_share_of_total_rewards = total_rewards_in_stsei_rewards.multiply_ratio(
-//         stsei_total_bonded_amount,
-//         stsei_total_bonded_amount + bsei_total_bonded_amount,
-//     );
+pub(crate) fn query_swap_simulation(deps: &DepsMut, contract_addr: String, offer_coin: Coin, ask_denom: String) -> StdResult<SimulationResponse> {
+    let querier = &deps.querier;
+    let asset_infos = [
+        AssetInfo::NativeToken {
+            denom: offer_coin.denom.clone(),
+        },
+        AssetInfo::NativeToken {
+            denom: ask_denom.clone(),
+        },
+    ];
+    let offer_asset: Asset = Asset {
+        info: AssetInfo::NativeToken {
+            denom: offer_coin.denom.clone(),
+        },
+        amount: offer_coin.amount,
+    };
+    let simulation_response = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: contract_addr.clone(),
+        msg: to_binary(&SwapQueryMsg::QuerySimulation { asset_infos, offer_asset })?,
+    }))?;
 
-//     if total_stsei_rewards_available.gt(&stsei_share_of_total_rewards) {
-//         let stsei_rewards_to_sell =
-//             total_stsei_rewards_available.checked_sub(stsei_share_of_total_rewards)?;
+    Ok(simulation_response)
+}
 
-//         Ok((
-//             Coin::new(
-//                 stsei_rewards_to_sell.u128(),
-//                 config.stsei_reward_denom.as_str(),
-//             ),
-//             config.bsei_reward_denom,
-//         ))
-//     } else {
-//         let stsei_rewards_to_buy =
-//             stsei_share_of_total_rewards.checked_sub(total_stsei_rewards_available)?;
-//         let bsei_rewards_to_sell = stsei_rewards_to_buy.mul(stsei_2_bsei_rewards_xchg_rate);
+pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String) -> CosmosMsg {
+    let swap_msg = SwapExecteMsg::SwapDenom {
+        from_coin: coin.clone(),
+        target_denom: reward_denom,
+    };
+   let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: swap_addr,
+        msg: to_binary(&swap_msg).unwrap(),
+        funds: vec![coin.clone()],
+    });
+    msg
+}
 
-//         Ok((
-//             Coin::new(
-//                 bsei_rewards_to_sell.u128(),
-//                 config.bsei_reward_denom.as_str(),
-//             ),
-//             config.stsei_reward_denom,
-//         ))
-//     }
-// }
+
+pub(crate) fn get_exchange_rates(
+    deps: &DepsMut,
+    oracle_addr: &Addr,
+    denom_a: &str,
+    denom_b: &str,
+) -> StdResult<(Decimal, Decimal)> {
+    let querier = &deps.querier;
+    let a_2_b_xchg_rate: Decimal =
+        querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: oracle_addr.to_string(),
+            msg: to_binary(&PythOracleQueryMsg::QueryExchangeRateByAssetLabel { base_label: denom_a.to_string(), quote_label: denom_b.to_string() })?,
+        }))?;
+
+    Ok((
+        a_2_b_xchg_rate.clone(),
+        a_2_b_xchg_rate
+            .inv()
+            .ok_or_else(|| StdError::generic_err("failed to convert exchange rate"))?,
+    ))
+}
+
+pub(crate) fn get_swap_info(
+    config: Config,
+    stsei_total_bonded_amount: Uint128,
+    bsei_total_bonded_amount: Uint128,
+    total_stsei_rewards_available: Uint128,
+    total_bsei_rewards_available: Uint128,
+    bsei_2_stsei_rewards_xchg_rate: Decimal,
+    stsei_2_bsei_rewards_xchg_rate: Decimal,
+) -> StdResult<(Coin, String)> {
+    // Total rewards in stsei rewards currency.
+    let total_rewards_in_stsei_rewards = total_stsei_rewards_available
+        + total_bsei_rewards_available.mul(bsei_2_stsei_rewards_xchg_rate);
+
+    let stsei_share_of_total_rewards = total_rewards_in_stsei_rewards.multiply_ratio(
+        stsei_total_bonded_amount,
+        stsei_total_bonded_amount + bsei_total_bonded_amount,
+    );
+
+    if total_stsei_rewards_available.gt(&stsei_share_of_total_rewards) {
+        let stsei_rewards_to_sell =
+            total_stsei_rewards_available.checked_sub(stsei_share_of_total_rewards)?;
+
+        Ok((
+            Coin::new(
+                stsei_rewards_to_sell.u128(),
+                config.stsei_reward_denom.as_str(),
+            ),
+            config.bsei_reward_denom,
+        ))
+    } else {
+        let stsei_rewards_to_buy =
+            stsei_share_of_total_rewards.checked_sub(total_stsei_rewards_available)?;
+        let bsei_rewards_to_sell = stsei_rewards_to_buy.mul(stsei_2_bsei_rewards_xchg_rate);
+
+        Ok((
+            Coin::new(
+                bsei_rewards_to_sell.u128(),
+                config.bsei_reward_denom.as_str(),
+            ),
+            config.stsei_reward_denom,
+        ))
+    }
+}
 
 pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
     let config = CONFIG.load(deps.storage)?;
@@ -362,7 +407,7 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
         msg: to_binary(&UpdateGlobalIndex {
             airdrop_hooks: None,
         })
-        .unwrap(),
+            .unwrap(),
         funds: vec![],
     }));
 

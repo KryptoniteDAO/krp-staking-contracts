@@ -30,4 +30,7 @@ pub struct Config {
     pub bsei_reward_denom: String,
     pub lido_fee_address: CanonicalAddr,
     pub lido_fee_rate: Decimal,
+    pub swap_contract: CanonicalAddr,
+    pub swap_denoms: Vec<String>,
+    pub oracle_contract: CanonicalAddr,
 }

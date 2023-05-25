@@ -7,6 +7,8 @@ use cosmwasm_std::{Decimal, Uint128};
 pub struct InstantiateMsg {
     pub hub_contract: String,
     pub reward_denom: String,
+    pub swap_contract: String,
+    pub swap_denoms: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

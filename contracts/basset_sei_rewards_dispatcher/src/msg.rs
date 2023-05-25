@@ -24,6 +24,9 @@ pub struct InstantiateMsg {
     pub bsei_reward_denom: String,
     pub lido_fee_address: String,
     pub lido_fee_rate: Decimal,
+    pub swap_contract: String,
+    pub swap_denoms: Vec<String>,
+    pub oracle_contract: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

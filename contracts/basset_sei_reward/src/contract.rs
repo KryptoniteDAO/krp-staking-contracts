@@ -40,6 +40,8 @@ pub fn instantiate(
         owner: deps.api.addr_canonicalize(&info.sender.to_string())?,
         hub_contract: deps.api.addr_canonicalize(&msg.hub_contract)?,
         reward_denom: msg.reward_denom,
+        swap_contract: deps.api.addr_canonicalize(&msg.swap_contract)?,
+        swap_denoms: msg.swap_denoms,
     };
 
     store_config(deps.storage, &conf)?;

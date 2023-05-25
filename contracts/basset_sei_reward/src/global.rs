@@ -17,14 +17,16 @@ use crate::state::{read_config, read_state, store_state, State};
 use crate::math::decimal_summation_in_256;
 
 use crate::querier::query_rewards_dispatcher_contract_address;
-use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
+use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult, SubMsg, to_binary, Uint128, WasmMsg};
+use basset::swap_ext::SwapExecteMsg;
 
 /// Swap all native tokens to reward_denom
 /// Only hub_contract is allowed to execute
 #[allow(clippy::if_same_then_else)]
-pub fn execute_swap(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> {
+pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
     let config = read_config(deps.storage)?;
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
+    let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
     let owner_addr = deps
         .api
         .addr_humanize(&query_rewards_dispatcher_contract_address(
@@ -35,6 +37,33 @@ pub fn execute_swap(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Re
     if info.sender != owner_addr {
         return Err(StdError::generic_err("unauthorized"));
     }
+
+    // --------------------- add swap start --------------------------
+    let contr_addr = env.contract.address.clone();
+    let balances = deps.querier.query_all_balances(contr_addr)?;
+
+    let swap_denoms = config.swap_denoms.clone();
+    let reward_denom = config.reward_denom.clone();
+
+    let mut messages: Vec<SubMsg> = Vec::new();
+
+    for coin in balances {
+        if !swap_denoms.contains(&coin.denom) {
+            continue;
+        }
+        if coin.amount > Uint128::zero() {
+            let swap_msg = SwapExecteMsg::SwapDenom {
+                from_coin: coin.clone(),
+                target_denom: reward_denom.clone(),
+            };
+            messages.push(SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: swap_addr.clone().to_string(),
+                msg: to_binary(&swap_msg)?,
+                funds: vec![coin.clone()],
+            })));
+        }
+    }
+    // --------------------- add swap end --------------------------
 
     // let contr_addr = env.contract.address;
     // let balance = deps.querier.query_all_balances(contr_addr)?;
@@ -64,7 +93,7 @@ pub fn execute_swap(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Re
     // }
 
     let res = Response::new()
-        //.add_submessages(messages)
+        .add_submessages(messages)
         .add_attributes(vec![attr("action", "swap")]);
 
     Ok(res)

@@ -29,6 +29,8 @@ pub struct Config {
     pub owner: CanonicalAddr,
     pub hub_contract: CanonicalAddr,
     pub reward_denom: String,
+    pub swap_contract: CanonicalAddr,
+    pub swap_denoms: Vec<String>,
 }
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
@@ -188,6 +190,8 @@ mod test {
                 owner: deps.api.addr_canonicalize("owner1").unwrap(),
                 hub_contract: deps.api.addr_canonicalize("hub").unwrap(),
                 reward_denom: "".to_string(),
+                swap_denoms: vec![],
+                swap_contract: deps.api.addr_canonicalize("swap").unwrap(),
             },
         )
         .unwrap();
