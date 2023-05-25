@@ -44,6 +44,13 @@ pub enum ExecuteMsg {
     /// return the accrued reward in uusd to the user.
     ClaimRewards { recipient: Option<String> },
     //UpdateConfig { stable_contract: String},
+    UpdateSwapContract {
+        swap_contract: String,
+    },
+    UpdateSwapDenom {
+        swap_denom: String,
+        is_add: bool,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

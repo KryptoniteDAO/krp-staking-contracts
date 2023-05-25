@@ -46,6 +46,16 @@ pub enum ExecuteMsg {
         lido_fee_rate: Option<Decimal>,
     },
     DispatchRewards {},
+    UpdateSwapContract {
+        swap_contract: String,
+    },
+    UpdateSwapDenom {
+        swap_denom: String,
+        is_add: bool,
+    },
+    UpdateOracleContract{
+        oracle_contract: String,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

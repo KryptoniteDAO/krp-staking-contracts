@@ -19,10 +19,11 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{attr, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, Coin, QueryRequest, WasmQuery, Fraction, Addr};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{Config, CONFIG};
+use crate::state::{Config, CONFIG, read_config, store_config};
 use basset::hub::ExecuteMsg::UpdateGlobalIndex;
 use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
 use basset::oracle_pyth::{QueryMsg as PythOracleQueryMsg};
+use crate::handler::{update_oracle_contract, update_swap_contract, update_swap_denom};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -44,8 +45,7 @@ pub fn instantiate(
         oracle_contract: deps.api.addr_canonicalize(&msg.oracle_contract)?,
     };
 
-    CONFIG.save(deps.storage, &conf)?;
-
+    store_config(deps.storage, &conf)?;
     Ok(Response::default())
 }
 
@@ -83,6 +83,16 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             lido_fee_address,
             lido_fee_rate,
         ),
+        ExecuteMsg::UpdateSwapContract {
+            swap_contract,
+        } => update_swap_contract(deps, info, swap_contract),
+        ExecuteMsg::UpdateSwapDenom {
+            swap_denom,
+            is_add,
+        } => update_swap_denom(deps, info, swap_denom, is_add),
+        ExecuteMsg::UpdateOracleContract {
+            oracle_contract,
+        } => update_oracle_contract(deps, info, oracle_contract),
     }
 }
 
@@ -99,7 +109,7 @@ pub fn execute_update_config(
     lido_fee_address: Option<String>,
     lido_fee_rate: Option<Decimal>,
 ) -> StdResult<Response> {
-    let conf = CONFIG.load(deps.storage)?;
+    let conf = read_config(deps.storage)?;
     let sender_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
     if sender_raw != conf.owner {
         return Err(StdError::generic_err("unauthorized"));
@@ -170,7 +180,7 @@ pub fn execute_swap(
     bsei_total_bonded_amount: Uint128,
     stsei_total_bonded_amount: Uint128,
 ) -> StdResult<Response> {
-    let config = CONFIG.load(deps.storage)?;
+    let config = read_config(deps.storage)?;
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
     let oracle_addr = deps.api.addr_humanize(&config.oracle_contract)?;
@@ -314,7 +324,7 @@ pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: Strin
         from_coin: coin.clone(),
         target_denom: reward_denom,
     };
-   let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: swap_addr,
         msg: to_binary(&swap_msg).unwrap(),
         funds: vec![coin.clone()],
@@ -389,7 +399,7 @@ pub(crate) fn get_swap_info(
 }
 
 pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
-    let config = CONFIG.load(deps.storage)?;
+    let config = read_config(deps.storage)?;
 
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     if info.sender != hub_addr {
@@ -419,7 +429,7 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
 }
 
 fn query_config(deps: Deps) -> StdResult<Config> {
-    let config = CONFIG.load(deps.storage)?;
+    let config = read_config(deps.storage)?;
     Ok(config)
 }
 

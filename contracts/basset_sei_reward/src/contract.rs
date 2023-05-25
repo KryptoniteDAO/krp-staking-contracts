@@ -28,6 +28,7 @@ use cosmwasm_std::{
 use basset::reward::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse,
 };
+use crate::handler::{update_swap_contract, update_swap_denom};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -68,6 +69,24 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::DecreaseBalance { address, amount } => {
             execute_decrease_balance(deps, env, info, address, amount)
+        }
+        ExecuteMsg::UpdateSwapContract {
+            swap_contract,
+        } => {
+            update_swap_contract(
+                deps,
+                info,
+                swap_contract)
+        }
+        ExecuteMsg::UpdateSwapDenom {
+            swap_denom,
+            is_add
+        } => {
+            update_swap_denom(
+                deps,
+                info,
+                swap_denom,
+                is_add)
         }
     }
 }

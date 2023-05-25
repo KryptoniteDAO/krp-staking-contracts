@@ -15,7 +15,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, Decimal};
+use cosmwasm_std::{CanonicalAddr, Decimal, StdResult, Storage};
 
 use cw_storage_plus::Item;
 
@@ -34,3 +34,13 @@ pub struct Config {
     pub swap_denoms: Vec<String>,
     pub oracle_contract: CanonicalAddr,
 }
+
+pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
+    CONFIG.save(storage, config)?;
+    Ok(())
+}
+
+pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
+    CONFIG.load(storage)
+}
+
