@@ -31,6 +31,7 @@ use basset::hub::{Cw20HookMsg, ExecuteMsg};
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
 use basset_sei_validators_registry::msg::ExecuteMsg::AddValidator;
 use basset_sei_validators_registry::registry::Validator;
+use basset_sei_rewards_dispatcher::msg::ExecuteMsg::SwapToRewardDenom;
 
 use crate::bond::execute_bond;
 use crate::config::{execute_update_config, execute_update_params};
@@ -316,12 +317,12 @@ pub fn receive_cw20(
 pub fn execute_update_global(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     airdrop_hooks: Option<Vec<Binary>>,
 ) -> StdResult<Response> {
     let mut messages: Vec<CosmosMsg> = vec![];
     let config = CONFIG.load(deps.storage)?;
-    let reward_dispatcher_addr =
+    let reward_addr =
         deps.api
             .addr_humanize(&config.reward_dispatcher_contract.ok_or_else(|| {
                 StdError::generic_err("the reward contract must have been registered")
@@ -346,48 +347,22 @@ pub fn execute_update_global(
     let mut withdraw_msgs = withdraw_all_rewards(&deps, env.contract.address.to_string())?;
     messages.append(&mut withdraw_msgs);
 
-    // let state = STATE.load(deps.storage)?;
+    let state = STATE.load(deps.storage)?;
 
     // Send Swap message to reward contract
-    // let swap_msg = SwapToRewardDenom {
-    //     stsei_total_bonded: state.total_bond_stsei_amount,
-    //     bsei_total_bonded: state.total_bond_bsei_amount,
-    // };
-
-    // messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-    //     contract_addr: reward_addr.to_string(),
-    //     msg: to_binary(&swap_msg)?,
-    //     funds: vec![],
-    // }));
-
-    // let stable_contract = deps.api.addr_humanize(&config.stable_contract.ok_or_else(|| {
-    //     StdError::generic_err("the stable contract must have been configured")
-    // })?)?.to_string();
-    let rewards_contract = deps
-        .api
-        .addr_humanize(&config.rewards_contract.ok_or_else(|| {
-            StdError::generic_err("the rewards contract must have been configured")
-        })?)?
-        .to_string();
-
-    // messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-    //     contract_addr: stable_contract.to_string(),
-    //     msg:  to_binary(&Cw20ExecuteMsg::Transfer {
-    //                 recipient: rewards_contract.to_string(),
-    //                 amount: rewards})?,
-    //     funds: vec![],
-    // }));
-
-    messages.push(
-        BankMsg::Send {
-            to_address: rewards_contract.to_string(),
-            amount: info.funds,
-        }
-        .into(),
-    );
+    let swap_msg = SwapToRewardDenom {
+        stsei_total_bonded: state.total_bond_stsei_amount,
+        bsei_total_bonded: state.total_bond_bsei_amount,
+    };
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: reward_dispatcher_addr.to_string(),
+        contract_addr: reward_addr.to_string(),
+        msg: to_binary(&swap_msg)?,
+        funds: vec![],
+    }));
+
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: reward_addr.to_string(),
         msg: to_binary(&DispatchRewards {})?,
         funds: vec![],
     }));
