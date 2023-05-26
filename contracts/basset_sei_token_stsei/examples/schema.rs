@@ -17,8 +17,8 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use cw20::{
-    AllAccountsResponse, AllAllowancesResponse, AllowanceResponse, BalanceResponse,
-    TokenInfoResponse,
+    AllAccountsResponse, AllAllowancesResponse, AllowanceResponse, AllSpenderAllowancesResponse,
+    BalanceResponse, DownloadLogoResponse, MarketingInfoResponse, MinterResponse, TokenInfoResponse,
 };
 use cw20_base::msg::{ExecuteMsg, QueryMsg};
 
@@ -38,4 +38,8 @@ fn main() {
     export_schema(&schema_for!(TokenInfoResponse), &out_dir);
     export_schema(&schema_for!(AllAllowancesResponse), &out_dir);
     export_schema(&schema_for!(AllAccountsResponse), &out_dir);
+    export_schema(&schema_for!(MinterResponse), &out_dir);
+    export_schema(&schema_for!(AllSpenderAllowancesResponse), &out_dir);
+    export_schema(&schema_for!(MarketingInfoResponse), &out_dir);
+    export_schema(&schema_for!(DownloadLogoResponse), &out_dir);
 }

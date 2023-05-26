@@ -8,7 +8,10 @@
     "hub_contract",
     "lido_fee_address",
     "lido_fee_rate",
-    "stsei_reward_denom"
+    "oracle_contract",
+    "stsei_reward_denom",
+    "swap_contract",
+    "swap_denoms"
   ],
   "properties": {
     "bsei_reward_contract": {
@@ -26,8 +29,20 @@
     "lido_fee_rate": {
       "$ref": "#/definitions/Decimal"
     },
+    "oracle_contract": {
+      "type": "string"
+    },
     "stsei_reward_denom": {
       "type": "string"
+    },
+    "swap_contract": {
+      "type": "string"
+    },
+    "swap_denoms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "definitions": {

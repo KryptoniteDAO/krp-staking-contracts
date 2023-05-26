@@ -4,7 +4,9 @@
   "type": "object",
   "required": [
     "hub_contract",
-    "reward_denom"
+    "reward_denom",
+    "swap_contract",
+    "swap_denoms"
   ],
   "properties": {
     "hub_contract": {
@@ -12,6 +14,15 @@
     },
     "reward_denom": {
       "type": "string"
+    },
+    "swap_contract": {
+      "type": "string"
+    },
+    "swap_denoms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

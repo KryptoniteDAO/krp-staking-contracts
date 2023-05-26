@@ -16,12 +16,12 @@ use std::env::current_dir;
 use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-
-use basset_sei_token_bsei::msg::TokenInitMsg;
 use cw20::{
     AllAccountsResponse, AllAllowancesResponse, AllowanceResponse, BalanceResponse,
-    TokenInfoResponse,
+    MinterResponse, TokenInfoResponse,
 };
+
+use basset_sei_token_bsei::msg::TokenInitMsg;
 use cw20_legacy::msg::{ExecuteMsg, QueryMsg};
 
 fn main() {
@@ -38,4 +38,5 @@ fn main() {
     export_schema(&schema_for!(TokenInfoResponse), &out_dir);
     export_schema(&schema_for!(AllAllowancesResponse), &out_dir);
     export_schema(&schema_for!(AllAccountsResponse), &out_dir);
+    export_schema(&schema_for!(MinterResponse), &out_dir);
 }

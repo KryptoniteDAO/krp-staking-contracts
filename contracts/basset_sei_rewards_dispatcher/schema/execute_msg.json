@@ -97,6 +97,70 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_swap_contract"
+      ],
+      "properties": {
+        "update_swap_contract": {
+          "type": "object",
+          "required": [
+            "swap_contract"
+          ],
+          "properties": {
+            "swap_contract": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_swap_denom"
+      ],
+      "properties": {
+        "update_swap_denom": {
+          "type": "object",
+          "required": [
+            "is_add",
+            "swap_denom"
+          ],
+          "properties": {
+            "is_add": {
+              "type": "boolean"
+            },
+            "swap_denom": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_oracle_contract"
+      ],
+      "properties": {
+        "update_oracle_contract": {
+          "type": "object",
+          "required": [
+            "oracle_contract"
+          ],
+          "properties": {
+            "oracle_contract": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
