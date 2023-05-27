@@ -9,6 +9,7 @@ pub enum SwapExecteMsg {
     SwapDenom {
         from_coin: Coin,
         target_denom: String,
+        to_address: Option<String>,
     }
 }
 

@@ -184,6 +184,7 @@ pub fn execute_swap(
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
     let oracle_addr = deps.api.addr_humanize(&config.oracle_contract)?;
+    let reward_addr = deps.api.addr_humanize(&config.bsei_reward_contract)?;
 
     if info.sender != hub_addr {
         return Err(StdError::generic_err("unauthorized"));
@@ -200,6 +201,7 @@ pub fn execute_swap(
             config.clone(),
             config.stsei_reward_denom.clone(),
             config.bsei_reward_denom.clone(),
+            reward_addr.clone().to_string()
         )?;
 
     let (sei_2_ust_rewards_xchg_rate, ust_2_sei_rewards_xchg_rate) = get_exchange_rates(
@@ -220,27 +222,29 @@ pub fn execute_swap(
     )?;
 
     if !offer_coin.amount.is_zero() {
-        msgs.push(create_swap_msg(offer_coin.clone(), ask_denom.clone(), swap_addr.clone().to_string())?);
+        let msg = create_swap_msg(offer_coin.clone(), ask_denom.clone(),
+                                  swap_addr.clone().to_string(), reward_addr.clone().to_string())?;
+        msgs.push(msg);
     }
 
     let res = Response::new().add_messages(msgs).
         add_attributes(vec![
-        attr("action", "swap"),
-        attr("initial_balance", format!("{:?}", balance)),
-        attr(
-            "sei_2_ust_rewards_xchg_rate",
-            sei_2_ust_rewards_xchg_rate.to_string(),
-        ),
-        attr(
-            "ust_2_sei_rewards_xchg_rate",
-            ust_2_sei_rewards_xchg_rate.to_string(),
-        ),
-        attr("total_sei_rewards_available", total_sei_rewards_available),
-        attr("total_ust_rewards_available", total_ust_rewards_available),
-        attr("offer_coin_denom", offer_coin.denom),
-        attr("offer_coin_amount", offer_coin.amount),
-        attr("ask_denom", ask_denom),
-    ]);
+            attr("action", "swap"),
+            attr("initial_balance", format!("{:?}", balance)),
+            attr(
+                "sei_2_ust_rewards_xchg_rate",
+                sei_2_ust_rewards_xchg_rate.to_string(),
+            ),
+            attr(
+                "ust_2_sei_rewards_xchg_rate",
+                ust_2_sei_rewards_xchg_rate.to_string(),
+            ),
+            attr("total_sei_rewards_available", total_sei_rewards_available),
+            attr("total_ust_rewards_available", total_ust_rewards_available),
+            attr("offer_coin_denom", offer_coin.denom),
+            attr("offer_coin_amount", offer_coin.amount),
+            attr("ask_denom", ask_denom),
+        ]);
 
     Ok(res)
 }
@@ -252,6 +256,7 @@ pub(crate) fn convert_to_target_denoms(
     config: Config,
     denom_to_keep: String,
     denom_to_xchg: String,
+    reward_addr: String,
 ) -> StdResult<(Uint128, Uint128, Vec<CosmosMsg>)> {
     let mut total_sei_available: Uint128 = Uint128::zero();
     let mut total_usd_available: Uint128 = Uint128::zero();
@@ -287,8 +292,9 @@ pub(crate) fn convert_to_target_denoms(
             )?;
 
             total_usd_available += simulation_response.return_amount;
-
-            msgs.push(create_swap_msg(coin, denom_to_xchg.clone().to_string(), swap_contract.clone().to_string())?);
+            let msg = create_swap_msg(coin, denom_to_xchg.clone(),
+                                      swap_contract.clone().to_string(), reward_addr.clone())?;
+            msgs.push(msg);
         }
     }
 
@@ -320,10 +326,11 @@ pub(crate) fn query_swap_simulation(deps: &DepsMut, contract_addr: String, offer
     Ok(simulation_response)
 }
 
-pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String) -> StdResult<CosmosMsg> {
+pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String, reward_addr: String) -> StdResult<CosmosMsg> {
     let swap_msg = SwapExecteMsg::SwapDenom {
         from_coin: coin.clone(),
         target_denom: reward_denom,
+        to_address: Option::from(reward_addr),
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: swap_addr,

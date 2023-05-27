@@ -40,7 +40,7 @@ pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Res
 
     // --------------------- add swap start --------------------------
     let contr_addr = env.contract.address.clone();
-    let balances = deps.querier.query_all_balances(contr_addr)?;
+    let balances = deps.querier.query_all_balances(contr_addr.clone())?;
 
     let swap_denoms = config.swap_denoms.clone();
     let reward_denom = config.reward_denom.clone();
@@ -55,6 +55,7 @@ pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Res
             let swap_msg = SwapExecteMsg::SwapDenom {
                 from_coin: coin.clone(),
                 target_denom: reward_denom.clone(),
+                to_address: Option::from(contr_addr.clone().to_string()),
             };
             messages.push(SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: swap_addr.clone().to_string(),
