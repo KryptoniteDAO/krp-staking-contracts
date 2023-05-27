@@ -220,10 +220,11 @@ pub fn execute_swap(
     )?;
 
     if !offer_coin.amount.is_zero() {
-        msgs.push(create_swap_msg(offer_coin.clone(), ask_denom.clone(), swap_addr.clone().to_string()));
+        msgs.push(create_swap_msg(offer_coin.clone(), ask_denom.clone(), swap_addr.clone().to_string())?);
     }
 
-    let res = Response::new().add_attributes(vec![
+    let res = Response::new().add_messages(msgs).
+        add_attributes(vec![
         attr("action", "swap"),
         attr("initial_balance", format!("{:?}", balance)),
         attr(
@@ -319,7 +320,7 @@ pub(crate) fn query_swap_simulation(deps: &DepsMut, contract_addr: String, offer
     Ok(simulation_response)
 }
 
-pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String) -> CosmosMsg {
+pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String) -> StdResult<CosmosMsg> {
     let swap_msg = SwapExecteMsg::SwapDenom {
         from_coin: coin.clone(),
         target_denom: reward_denom,
@@ -329,7 +330,7 @@ pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: Strin
         msg: to_binary(&swap_msg).unwrap(),
         funds: vec![coin.clone()],
     });
-    msg
+    Ok(msg)
 }
 
 
