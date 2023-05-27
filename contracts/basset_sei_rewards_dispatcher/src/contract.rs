@@ -288,7 +288,7 @@ pub(crate) fn convert_to_target_denoms(
 
             total_usd_available += simulation_response.return_amount;
 
-            msgs.push(create_swap_msg(coin, denom_to_xchg.clone().to_string(), swap_contract.clone().to_string()));
+            msgs.push(create_swap_msg(coin, denom_to_xchg.clone().to_string(), swap_contract.clone().to_string())?);
         }
     }
 
