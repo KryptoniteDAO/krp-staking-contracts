@@ -1,0 +1,26 @@
+{
+  "hub": {
+    "codeId": 890,
+    "address": "sei14x6javwtqrff8g5nke8gdppj34ejxgwyezzcdqauzg3459gh77dqssf4fz"
+  },
+  "reward": {
+    "codeId": 891,
+    "address": "sei1u6znfkqerkm9h6n0q6l2d6jqpxqlmfjkksk0gpf8k5eusmw0ag5sr450ea"
+  },
+  "bSeiToken": {
+    "codeId": 892,
+    "address": "sei16g20mj2wagxjnyzgre70xkc8q756625fvjxfvfshk7eemszwp0zsez34ex"
+  },
+  "rewardsDispatcher": {
+    "codeId": 893,
+    "address": "sei1vyp9g6c02d20dw97rdfmvm88hgyxljlmxhs03l9n6dsgj0tdwvdsgujrpz"
+  },
+  "validatorsRegistry": {
+    "codeId": 894,
+    "address": "sei1rh9mxe6nj09dndjz956xzaphkgefdlxfds4mh6w8pg0tqqdcs2wqwgdg04"
+  },
+  "stSeiToken": {
+    "codeId": 896,
+    "address": "sei1lpx0jcqm0uvt8w3t9039lkntdlpkr2r929zzutnsu3x6fys44t2qgjxsv8"
+  }
+}
