@@ -60,7 +60,7 @@ pub fn execute_bond(
             "More than one coin is sent; only one asset is supported",
         ));
     }
-
+  
     // coin must have be sent along with transaction and it should be in underlying coin denom
     let payment = info
         .funds
@@ -140,15 +140,6 @@ pub fn execute_bond(
                 .to_string(),
             msg: to_binary(&QueryValidators::GetValidatorsForDelegation {})?,
         }))?;
-
-    // if !validators.is_empty() {
-    //     let mut check_str ="validators query".to_string();
-    //     check_str += &validators[0].address.to_string();
-
-    //     return Err(StdError::generic_err(
-    //         check_str
-    //     ));
-    // }
 
     if validators.is_empty() {
         return Err(StdError::generic_err("Validators registry is empty"));

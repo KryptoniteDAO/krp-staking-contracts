@@ -15,6 +15,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use crate::error::ContractError;
 use crate::global::{execute_swap, execute_update_global_index};
 use crate::state::{read_config, read_state, store_config, store_state, Config, State};
 use crate::user::{
@@ -25,10 +26,12 @@ use cosmwasm_std::{
     to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 
+use crate::handler::{udpate_config, update_swap_denom};
 use basset::reward::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse,
 };
-use crate::handler::{update_swap_contract, update_swap_denom};
+
+use basset::handle::optional_addr_validate;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -59,9 +62,31 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::ClaimRewards { recipient } => execute_claim_rewards(deps, env, info, recipient),
+        ExecuteMsg::UpdateConfig {
+            owner_addr,
+            hub_contract,
+            reward_denom,
+            swap_contract,
+        } => {
+            let api = deps.api;
+            udpate_config(
+                deps,
+                info,
+                optional_addr_validate(api, owner_addr)?,
+                optional_addr_validate(api, hub_contract)?,
+                reward_denom,
+                optional_addr_validate(api, swap_contract)?,
+            )
+        }
+
         ExecuteMsg::SwapToRewardDenom {} => execute_swap(deps, env, info),
         ExecuteMsg::UpdateGlobalIndex {} => execute_update_global_index(deps, env, info),
         ExecuteMsg::IncreaseBalance { address, amount } => {
@@ -70,23 +95,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::DecreaseBalance { address, amount } => {
             execute_decrease_balance(deps, env, info, address, amount)
         }
-        ExecuteMsg::UpdateSwapContract {
-            swap_contract,
-        } => {
-            update_swap_contract(
-                deps,
-                info,
-                swap_contract)
-        }
-        ExecuteMsg::UpdateSwapDenom {
-            swap_denom,
-            is_add
-        } => {
-            update_swap_denom(
-                deps,
-                info,
-                swap_denom,
-                is_add)
+        ExecuteMsg::UpdateSwapDenom { swap_denom, is_add } => {
+            update_swap_denom(deps, info, swap_denom, is_add)
         }
     }
 }

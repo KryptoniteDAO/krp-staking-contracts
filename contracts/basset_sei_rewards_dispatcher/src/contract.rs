@@ -12,18 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::ops::Mul;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{attr, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, Coin, QueryRequest, WasmQuery, Fraction, Addr};
-
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{Config, CONFIG, read_config, store_config};
-use basset::hub::ExecuteMsg::UpdateGlobalIndex;
-use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
-use basset::oracle_pyth::{QueryMsg as PythOracleQueryMsg};
 use crate::handler::{update_oracle_contract, update_swap_contract, update_swap_denom};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::state::{read_config, store_config, Config, CONFIG};
+use basset::dispatcher::ConfigResponse;
+use basset::hub::ExecuteMsg::UpdateGlobalIndex;
+use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
+use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
+use cosmwasm_std::{
+    attr, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Fraction,
+    MessageInfo, QueryRequest, Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+};
+use std::ops::Mul;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -38,8 +41,8 @@ pub fn instantiate(
         bsei_reward_contract: deps.api.addr_canonicalize(&msg.bsei_reward_contract)?,
         bsei_reward_denom: msg.bsei_reward_denom,
         stsei_reward_denom: msg.stsei_reward_denom,
-        lido_fee_address: deps.api.addr_canonicalize(&msg.lido_fee_address)?,
-        lido_fee_rate: msg.lido_fee_rate,
+        krp_keeper_address: deps.api.addr_canonicalize(&msg.krp_keeper_address)?,
+        krp_keeper_rate: msg.krp_keeper_rate,
         swap_contract: deps.api.addr_canonicalize(&msg.swap_contract)?,
         swap_denoms: msg.swap_denoms,
         oracle_contract: deps.api.addr_canonicalize(&msg.oracle_contract)?,
@@ -69,8 +72,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             bsei_reward_contract,
             stsei_reward_denom,
             bsei_reward_denom,
-            lido_fee_address,
-            lido_fee_rate,
+            krp_keeper_address,
+            krp_keeper_rate,
         } => execute_update_config(
             deps,
             env,
@@ -80,19 +83,18 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             bsei_reward_contract,
             stsei_reward_denom,
             bsei_reward_denom,
-            lido_fee_address,
-            lido_fee_rate,
+            krp_keeper_address,
+            krp_keeper_rate,
         ),
-        ExecuteMsg::UpdateSwapContract {
-            swap_contract,
-        } => update_swap_contract(deps, info, swap_contract),
-        ExecuteMsg::UpdateSwapDenom {
-            swap_denom,
-            is_add,
-        } => update_swap_denom(deps, info, swap_denom, is_add),
-        ExecuteMsg::UpdateOracleContract {
-            oracle_contract,
-        } => update_oracle_contract(deps, info, oracle_contract),
+        ExecuteMsg::UpdateSwapContract { swap_contract } => {
+            update_swap_contract(deps, info, swap_contract)
+        }
+        ExecuteMsg::UpdateSwapDenom { swap_denom, is_add } => {
+            update_swap_denom(deps, info, swap_denom, is_add)
+        }
+        ExecuteMsg::UpdateOracleContract { oracle_contract } => {
+            update_oracle_contract(deps, info, oracle_contract)
+        }
     }
 }
 
@@ -106,8 +108,8 @@ pub fn execute_update_config(
     bsei_reward_contract: Option<String>,
     stsei_reward_denom: Option<String>,
     bsei_reward_denom: Option<String>,
-    lido_fee_address: Option<String>,
-    lido_fee_rate: Option<Decimal>,
+    krp_keeper_address: Option<String>,
+    krp_keeper_rate: Option<Decimal>,
 ) -> StdResult<Response> {
     let conf = read_config(deps.storage)?;
     let sender_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
@@ -149,23 +151,24 @@ pub fn execute_update_config(
     }
 
     if let Some(_b) = bsei_reward_denom {
-        return Err(StdError::generic_err(
-            "updating bSei reward denom is forbidden",
-        ));
-    }
-
-    if let Some(r) = lido_fee_rate {
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.lido_fee_rate = r;
+            last_config.bsei_reward_denom = _b;
             Ok(last_config)
         })?;
     }
 
-    if let Some(a) = lido_fee_address {
+    if let Some(r) = krp_keeper_rate {
+        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
+            last_config.krp_keeper_rate = r;
+            Ok(last_config)
+        })?;
+    }
+
+    if let Some(a) = krp_keeper_address {
         let address_raw = deps.api.addr_canonicalize(&a)?;
 
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.lido_fee_address = address_raw;
+            last_config.krp_keeper_address = address_raw;
             Ok(last_config)
         })?;
     }
@@ -184,7 +187,6 @@ pub fn execute_swap(
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
     let oracle_addr = deps.api.addr_humanize(&config.oracle_contract)?;
-    let reward_addr = deps.api.addr_humanize(&config.bsei_reward_contract)?;
 
     if info.sender != hub_addr {
         return Err(StdError::generic_err("unauthorized"));
@@ -193,7 +195,6 @@ pub fn execute_swap(
     let contr_addr = env.contract.address;
     let balance = deps.querier.query_all_balances(contr_addr)?;
 
-
     let (total_sei_rewards_available, total_ust_rewards_available, mut msgs) =
         convert_to_target_denoms(
             &deps,
@@ -201,7 +202,7 @@ pub fn execute_swap(
             config.clone(),
             config.stsei_reward_denom.clone(),
             config.bsei_reward_denom.clone(),
-            reward_addr.clone().to_string()
+            None,
         )?;
 
     let (sei_2_ust_rewards_xchg_rate, ust_2_sei_rewards_xchg_rate) = get_exchange_rates(
@@ -222,29 +223,32 @@ pub fn execute_swap(
     )?;
 
     if !offer_coin.amount.is_zero() {
-        let msg = create_swap_msg(offer_coin.clone(), ask_denom.clone(),
-                                  swap_addr.clone().to_string(), reward_addr.clone().to_string())?;
+        let msg = create_swap_msg(
+            offer_coin.clone(),
+            ask_denom.clone(),
+            swap_addr.clone().to_string(),
+            None,
+        )?;
         msgs.push(msg);
     }
 
-    let res = Response::new().add_messages(msgs).
-        add_attributes(vec![
-            attr("action", "swap"),
-            attr("initial_balance", format!("{:?}", balance)),
-            attr(
-                "sei_2_ust_rewards_xchg_rate",
-                sei_2_ust_rewards_xchg_rate.to_string(),
-            ),
-            attr(
-                "ust_2_sei_rewards_xchg_rate",
-                ust_2_sei_rewards_xchg_rate.to_string(),
-            ),
-            attr("total_sei_rewards_available", total_sei_rewards_available),
-            attr("total_ust_rewards_available", total_ust_rewards_available),
-            attr("offer_coin_denom", offer_coin.denom),
-            attr("offer_coin_amount", offer_coin.amount),
-            attr("ask_denom", ask_denom),
-        ]);
+    let res = Response::new().add_messages(msgs).add_attributes(vec![
+        attr("action", "swap"),
+        attr("initial_balance", format!("{:?}", balance)),
+        attr(
+            "sei_2_ust_rewards_xchg_rate",
+            sei_2_ust_rewards_xchg_rate.to_string(),
+        ),
+        attr(
+            "ust_2_sei_rewards_xchg_rate",
+            ust_2_sei_rewards_xchg_rate.to_string(),
+        ),
+        attr("total_sei_rewards_available", total_sei_rewards_available),
+        attr("total_ust_rewards_available", total_ust_rewards_available),
+        attr("offer_coin_denom", offer_coin.denom),
+        attr("offer_coin_amount", offer_coin.amount),
+        attr("ask_denom", ask_denom),
+    ]);
 
     Ok(res)
 }
@@ -256,7 +260,7 @@ pub(crate) fn convert_to_target_denoms(
     config: Config,
     denom_to_keep: String,
     denom_to_xchg: String,
-    reward_addr: String,
+    reward_addr: Option<String>,
 ) -> StdResult<(Uint128, Uint128, Vec<CosmosMsg>)> {
     let mut total_sei_available: Uint128 = Uint128::zero();
     let mut total_usd_available: Uint128 = Uint128::zero();
@@ -292,8 +296,12 @@ pub(crate) fn convert_to_target_denoms(
             )?;
 
             total_usd_available += simulation_response.return_amount;
-            let msg = create_swap_msg(coin, denom_to_xchg.clone(),
-                                      swap_contract.clone().to_string(), reward_addr.clone())?;
+            let msg = create_swap_msg(
+                coin,
+                denom_to_xchg.clone(),
+                swap_contract.clone().to_string(),
+                reward_addr.clone(),
+            )?;
             msgs.push(msg);
         }
     }
@@ -301,8 +309,12 @@ pub(crate) fn convert_to_target_denoms(
     Ok((total_sei_available, total_usd_available, msgs))
 }
 
-
-pub(crate) fn query_swap_simulation(deps: &DepsMut, contract_addr: String, offer_coin: Coin, ask_denom: String) -> StdResult<SimulationResponse> {
+pub(crate) fn query_swap_simulation(
+    deps: &DepsMut,
+    contract_addr: String,
+    offer_coin: Coin,
+    ask_denom: String,
+) -> StdResult<SimulationResponse> {
     let querier = &deps.querier;
     let asset_infos = [
         AssetInfo::NativeToken {
@@ -320,17 +332,25 @@ pub(crate) fn query_swap_simulation(deps: &DepsMut, contract_addr: String, offer
     };
     let simulation_response = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: contract_addr.clone(),
-        msg: to_binary(&SwapQueryMsg::QuerySimulation { asset_infos, offer_asset })?,
+        msg: to_binary(&SwapQueryMsg::QuerySimulation {
+            asset_infos,
+            offer_asset,
+        })?,
     }))?;
 
     Ok(simulation_response)
 }
 
-pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: String, reward_addr: String) -> StdResult<CosmosMsg> {
+pub(crate) fn create_swap_msg(
+    coin: Coin,
+    reward_denom: String,
+    swap_addr: String,
+    reward_addr: Option<String>,
+) -> StdResult<CosmosMsg> {
     let swap_msg = SwapExecteMsg::SwapDenom {
         from_coin: coin.clone(),
         target_denom: reward_denom,
-        to_address: Option::from(reward_addr),
+        to_address: reward_addr,
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: swap_addr,
@@ -340,7 +360,6 @@ pub(crate) fn create_swap_msg(coin: Coin, reward_denom: String, swap_addr: Strin
     Ok(msg)
 }
 
-
 pub(crate) fn get_exchange_rates(
     deps: &DepsMut,
     oracle_addr: &Addr,
@@ -348,11 +367,13 @@ pub(crate) fn get_exchange_rates(
     denom_b: &str,
 ) -> StdResult<(Decimal, Decimal)> {
     let querier = &deps.querier;
-    let a_2_b_xchg_rate: Decimal =
-        querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: oracle_addr.to_string(),
-            msg: to_binary(&PythOracleQueryMsg::QueryExchangeRateByAssetLabel { base_label: denom_a.to_string(), quote_label: denom_b.to_string() })?,
-        }))?;
+    let a_2_b_xchg_rate: Decimal = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: oracle_addr.to_string(),
+        msg: to_binary(&PythOracleQueryMsg::QueryExchangeRateByAssetLabel {
+            base_label: denom_a.to_string(),
+            quote_label: denom_b.to_string(),
+        })?,
+    }))?;
 
     Ok((
         a_2_b_xchg_rate.clone(),
@@ -420,12 +441,41 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
         .query_balance(contr_addr, config.bsei_reward_denom.as_str())?;
 
     let mut messages: Vec<CosmosMsg> = vec![];
+    if !bsei_rewards.amount.is_zero() {
+        let keeper_rewards = bsei_rewards.amount * config.krp_keeper_rate;
+
+        messages.push(
+            BankMsg::Send {
+                to_address: deps
+                    .api
+                    .addr_humanize(&config.krp_keeper_address)?
+                    .to_string(),
+                amount: vec![Coin {
+                    denom: config.bsei_reward_denom.clone(),
+                    amount: keeper_rewards,
+                }],
+            }
+            .into(),
+        );
+
+        messages.push(
+            BankMsg::Send {
+                to_address: bsei_reward_addr.to_string(),
+                amount: vec![Coin {
+                    denom: config.bsei_reward_denom.clone(),
+                    amount: bsei_rewards.amount - keeper_rewards,
+                }],
+            }
+            .into(),
+        );
+    }
+
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: bsei_reward_addr.to_string(),
         msg: to_binary(&UpdateGlobalIndex {
             airdrop_hooks: None,
         })
-            .unwrap(),
+        .unwrap(),
         funds: vec![],
     }));
 
@@ -436,9 +486,26 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
     ]))
 }
 
-fn query_config(deps: Deps) -> StdResult<Config> {
+fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config = read_config(deps.storage)?;
-    Ok(config)
+    Ok(ConfigResponse {
+        owner: deps.api.addr_humanize(&config.owner)?.to_string(),
+        hub_contract: deps.api.addr_humanize(&config.hub_contract)?.to_string(),
+        bsei_reward_contract: deps
+            .api
+            .addr_humanize(&config.bsei_reward_contract)?
+            .to_string(),
+        stsei_reward_denom: config.stsei_reward_denom,
+        bsei_reward_denom: config.bsei_reward_denom,
+        lido_fee_address: deps
+            .api
+            .addr_humanize(&config.krp_keeper_address)?
+            .to_string(),
+        lido_fee_rate: config.krp_keeper_rate,
+        swap_contract: deps.api.addr_humanize(&config.swap_contract)?.to_string(),
+        swap_denoms: config.swap_denoms,
+        oracle_contract: deps.api.addr_humanize(&config.oracle_contract)?.to_string(),
+    })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

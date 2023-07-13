@@ -9,3 +9,6 @@ node_modules
 */.env*
 pnpm-lock.yaml
 */pnpm-lock.yaml
+krp-staking-contracts.code-workspace
+
+

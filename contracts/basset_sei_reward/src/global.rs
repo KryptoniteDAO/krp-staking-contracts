@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::ContractError;
 use crate::state::{read_config, read_state, store_state, State};
 
 use crate::math::decimal_summation_in_256;
 
 use crate::querier::query_rewards_dispatcher_contract_address;
-use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError, StdResult, SubMsg, to_binary, Uint128, WasmMsg};
+use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError, SubMsg, to_binary, Uint128, WasmMsg};
 use basset::swap_ext::SwapExecteMsg;
 
 /// Swap all native tokens to reward_denom
 /// Only hub_contract is allowed to execute
 #[allow(clippy::if_same_then_else)]
-pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
+pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let config = read_config(deps.storage)?;
     let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
     let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
@@ -35,7 +36,7 @@ pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Res
         )?)?;
 
     if info.sender != owner_addr {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Std(StdError::generic_err("unauthorized")));
     }
 
     // --------------------- add swap start --------------------------
@@ -106,7 +107,7 @@ pub fn execute_update_global_index(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut state: State = read_state(deps.storage)?;
 
     let config = read_config(deps.storage)?;
@@ -119,7 +120,7 @@ pub fn execute_update_global_index(
         )?)?;
 
     if info.sender != owner_addr {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Std(StdError::generic_err("unauthorized")));
     }
 
     // Zero staking balance check

@@ -17,6 +17,12 @@ pub enum ExecuteMsg {
     ////////////////////
     /// Owner's operations
     ///////////////////
+    UpdateConfig {
+        owner_addr: Option<String>,
+        hub_contract: Option<String>,
+        reward_denom: Option<String>, 
+        swap_contract: Option<String>,
+    },
 
     /// Swap all of the balances to uusd.
     SwapToRewardDenom {},
@@ -43,10 +49,7 @@ pub enum ExecuteMsg {
 
     /// return the accrued reward in uusd to the user.
     ClaimRewards { recipient: Option<String> },
-    //UpdateConfig { stable_contract: String},
-    UpdateSwapContract {
-        swap_contract: String,
-    },
+    
     UpdateSwapDenom {
         swap_denom: String,
         is_add: bool,

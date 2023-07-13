@@ -17,7 +17,7 @@ use cosmwasm_std::{to_binary, Addr, DepsMut, QueryRequest, StdError, StdResult, 
 use crate::state::read_hub_contract;
 use basset::hub::{ConfigResponse, QueryMsg as HubQueryMsg};
 use basset_sei_rewards_dispatcher::msg::QueryMsg as RewardsDispatcherQueryMsg;
-use basset_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
+use basset::dispatcher::ConfigResponse as DispatcherConfigResponse;
 
 pub fn query_reward_contract(deps: &DepsMut) -> StdResult<Addr> {
     let hub_address = deps.api.addr_humanize(&read_hub_contract(deps.storage)?)?;
@@ -40,15 +40,15 @@ pub fn query_reward_contract(deps: &DepsMut) -> StdResult<Addr> {
         )?,
     )?;
 
-    let rewards_dispatcher_config: RewardsDispatcherConfig =
+    let rewards_dispatcher_config: DispatcherConfigResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: rewards_dispatcher_address.to_string(),
             msg: to_binary(&RewardsDispatcherQueryMsg::Config {})?,
         }))?;
 
-    let bluna_reward_address = deps
+    let bsei_reward_address = deps
         .api
-        .addr_humanize(&rewards_dispatcher_config.bsei_reward_contract)?;
+        .addr_validate(&rewards_dispatcher_config.bsei_reward_contract)?;
 
-    Ok(bluna_reward_address)
+    Ok(bsei_reward_address)
 }

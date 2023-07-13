@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::ContractError;
 use crate::querier::query_token_contract_address;
 use crate::state::{
     read_config, read_holder, read_holders, read_state, store_holder, store_state, Config, Holder,
@@ -34,7 +35,7 @@ pub fn execute_claim_rewards(
     _env: Env,
     info: MessageInfo,
     recipient: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let holder_addr = info.sender;
     let holder_addr_raw = deps.api.addr_canonicalize(holder_addr.as_str())?;
     let recipient = match recipient {
@@ -55,7 +56,7 @@ pub fn execute_claim_rewards(
     let decimals = all_reward_with_decimals - Decimal::from_ratio(rewards, Uint128::new(1));
 
     if rewards.is_zero() {
-        return Err(StdError::generic_err("No rewards have accrued yet"));
+        return Err(ContractError::Std(StdError::generic_err("No rewards have accrued yet")));
     }
 
     let new_balance = (state.prev_reward_balance.checked_sub(rewards))?;
@@ -94,7 +95,7 @@ pub fn execute_increase_balance(
     info: MessageInfo,
     address: String,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config = read_config(deps.storage)?;
     let owner_human = deps.api.addr_humanize(&config.hub_contract)?;
     let address_raw = deps.api.addr_canonicalize(&address)?;
@@ -106,7 +107,7 @@ pub fn execute_increase_balance(
 
     // Check sender is token contract
     if sender != token_address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Std(StdError::generic_err("unauthorized")));
     }
 
     let mut state: State = read_state(deps.storage)?;
@@ -139,7 +140,7 @@ pub fn execute_decrease_balance(
     info: MessageInfo,
     address: String,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config = read_config(deps.storage)?;
     let hub_contract = deps.api.addr_humanize(&config.hub_contract)?;
     let address_raw = deps.api.addr_canonicalize(&address)?;
@@ -148,16 +149,16 @@ pub fn execute_decrease_balance(
     if query_token_contract_address(deps.as_ref(), hub_contract)?
         != deps.api.addr_canonicalize(info.sender.as_str())?
     {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Std(StdError::generic_err("unauthorized")));
     }
 
     let mut state: State = read_state(deps.storage)?;
     let mut holder: Holder = read_holder(deps.storage, &address_raw)?;
     if holder.balance < amount {
-        return Err(StdError::generic_err(format!(
+        return Err(ContractError::Std(StdError::generic_err(format!(
             "Decrease amount cannot exceed user balance: {}",
             holder.balance
-        )));
+        ))));
     }
 
     let rewards = calculate_decimal_rewards(state.global_index, holder.index, holder.balance);

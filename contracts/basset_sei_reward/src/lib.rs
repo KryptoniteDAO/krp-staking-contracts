@@ -6,6 +6,7 @@ mod math;
 mod querier;
 mod user;
 mod handler;
+mod error;
 
 #[cfg(test)]
 mod testing;

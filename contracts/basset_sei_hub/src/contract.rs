@@ -15,7 +15,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, from_binary, to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
+    attr, from_binary, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
     DistributionMsg, Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult,
     Uint128, WasmMsg, WasmQuery,
 };
@@ -29,17 +29,15 @@ use basset::hub::{
 };
 use basset::hub::{Cw20HookMsg, ExecuteMsg};
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
-use basset_sei_validators_registry::msg::ExecuteMsg::AddValidator;
-use basset_sei_validators_registry::registry::Validator;
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::SwapToRewardDenom;
 
 use crate::bond::execute_bond;
 use crate::config::{execute_update_config, execute_update_params};
 use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use crate::state::{
-    all_unbond_history, get_unbond_requests, migrate_unbond_history, migrate_unbond_wait_lists,
-    query_get_finished_amount, read_validators, remove_whitelisted_validators_store, CONFIG,
-    CURRENT_BATCH, OLD_CONFIG, OLD_CURRENT_BATCH, OLD_STATE, PARAMETERS, STATE,
+    all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists,
+    query_get_finished_amount, CONFIG,
+    CURRENT_BATCH, STATE, PARAMETERS,
 };
 use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
 
@@ -753,6 +751,6 @@ fn query_unbond_requests_limitation(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::new())
 }
