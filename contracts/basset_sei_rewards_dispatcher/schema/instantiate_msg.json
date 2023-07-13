@@ -6,8 +6,8 @@
     "bsei_reward_contract",
     "bsei_reward_denom",
     "hub_contract",
-    "lido_fee_address",
-    "lido_fee_rate",
+    "krp_keeper_address",
+    "krp_keeper_rate",
     "oracle_contract",
     "stsei_reward_denom",
     "swap_contract",
@@ -23,10 +23,10 @@
     "hub_contract": {
       "type": "string"
     },
-    "lido_fee_address": {
+    "krp_keeper_address": {
       "type": "string"
     },
-    "lido_fee_rate": {
+    "krp_keeper_rate": {
       "$ref": "#/definitions/Decimal"
     },
     "oracle_contract": {

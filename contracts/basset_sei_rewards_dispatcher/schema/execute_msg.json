@@ -53,13 +53,13 @@
                 "null"
               ]
             },
-            "lido_fee_address": {
+            "krp_keeper_address": {
               "type": [
                 "string",
                 "null"
               ]
             },
-            "lido_fee_rate": {
+            "krp_keeper_rate": {
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"

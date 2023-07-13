@@ -6,8 +6,8 @@
     "bsei_reward_contract",
     "bsei_reward_denom",
     "hub_contract",
-    "lido_fee_address",
-    "lido_fee_rate",
+    "krp_keeper_address",
+    "krp_keeper_rate",
     "oracle_contract",
     "owner",
     "stsei_reward_denom",
@@ -24,10 +24,10 @@
     "hub_contract": {
       "$ref": "#/definitions/CanonicalAddr"
     },
-    "lido_fee_address": {
+    "krp_keeper_address": {
       "$ref": "#/definitions/CanonicalAddr"
     },
-    "lido_fee_rate": {
+    "krp_keeper_rate": {
       "$ref": "#/definitions/Decimal"
     },
     "oracle_contract": {

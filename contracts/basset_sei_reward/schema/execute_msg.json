@@ -3,7 +3,46 @@
   "title": "ExecuteMsg",
   "oneOf": [
     {
-      "description": "Owner's operations Swap all of the balances to uusd.",
+      "description": "Owner's operations",
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "hub_contract": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "owner_addr": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reward_denom": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "swap_contract": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Swap all of the balances to uusd.",
       "type": "object",
       "required": [
         "swap_to_reward_denom"
@@ -93,26 +132,6 @@
                 "string",
                 "null"
               ]
-            }
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "update_swap_contract"
-      ],
-      "properties": {
-        "update_swap_contract": {
-          "type": "object",
-          "required": [
-            "swap_contract"
-          ],
-          "properties": {
-            "swap_contract": {
-              "type": "string"
             }
           }
         }
