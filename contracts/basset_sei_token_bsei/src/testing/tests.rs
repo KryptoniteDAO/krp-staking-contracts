@@ -53,8 +53,8 @@ fn _do_init<S: Storage, A: Api, Q: Querier>(
 ) -> TokenInfoResponse {
     let hub_contract = String::from(MOCK_HUB_CONTRACT_ADDR);
     let init_msg = TokenInitMsg {
-        name: "bluna".to_string(),
-        symbol: "BLUNA".to_string(),
+        name: "bsei".to_string(),
+        symbol: "BSEI".to_string(),
         decimals: 6,
         initial_balances: vec![],
         hub_contract,
@@ -68,8 +68,8 @@ fn _do_init<S: Storage, A: Api, Q: Querier>(
     assert_eq!(
         meta,
         TokenInfoResponse {
-            name: "bluna".to_string(),
-            symbol: "BLUNA".to_string(),
+            name: "bsei".to_string(),
+            symbol: "BSEI".to_string(),
             decimals: 6,
             total_supply: Uint128::zero(),
         }
@@ -96,8 +96,8 @@ fn proper_initialization() {
     let hub_contract_raw = deps.api.addr_canonicalize(&hub_contract).unwrap();
 
     let init_msg = TokenInitMsg {
-        name: "bluna".to_string(),
-        symbol: "BLUNA".to_string(),
+        name: "bsei".to_string(),
+        symbol: "BSEI".to_string(),
         decimals: 6,
         initial_balances: vec![],
         hub_contract: hub_contract.clone(),
@@ -109,8 +109,8 @@ fn proper_initialization() {
     assert_eq!(
         query_token_info(deps.as_ref()).unwrap(),
         TokenInfoResponse {
-            name: "bluna".to_string(),
-            symbol: "BLUNA".to_string(),
+            name: "bsei".to_string(),
+            symbol: "BSEI".to_string(),
             decimals: 6,
             total_supply: Uint128::zero(),
         }

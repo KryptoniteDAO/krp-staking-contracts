@@ -24,7 +24,7 @@ use cosmwasm_std::{
 use cosmwasm_storage::to_length_prefixed;
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg};
 use cw20_base::state::{MinterData, TokenInfo};
-use sei_cosmwasm::{SeiQuery, SeiQueryWrapper, SeiRoute};
+use sei_cosmwasm::{SeiQueryWrapper};
 use serde::de::DeserializeOwned;
 
 use basset::hub::Config;

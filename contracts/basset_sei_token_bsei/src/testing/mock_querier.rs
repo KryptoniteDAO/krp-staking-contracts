@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use basset::hub::ConfigResponse;
-use basset_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
+// use basset_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
+use basset::dispatcher::ConfigResponse as RewardsDispatcherConfig;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, to_binary, Api, Coin, ContractResult, Decimal, Empty, OwnedDeps, Querier,
-    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
+    from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier, QuerierResult,
+    QueryRequest, SystemError, SystemResult, WasmQuery,
 };
 
 pub const MOCK_OWNER_ADDR: &str = "owner";
@@ -27,8 +28,9 @@ pub const MOCK_REWARDS_CONTRACT_ADDR: &str = "rewards";
 pub const MOCK_TOKEN_CONTRACT_ADDR: &str = "token";
 pub const MOCK_VALIDATORS_REGISTRY_ADDR: &str = "validators";
 pub const MOCK_STSEI_TOKEN_CONTRACT_ADDR: &str = "stsei_token";
-//pub const MOCK_LIDO_FEE_ADDRESS: &str = "lido_fee";
 pub const MOCK_KRP_KEEPER_ADDRESS: &str = "krp_keeper";
+pub const MOCK_SWAP_CONTRACT_ADDR: &str = "swap";
+pub const MOCK_ORACLE_CONTRACT_ADDR: &str = "oracle";
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
@@ -55,7 +57,7 @@ impl Querier for WasmMockQuerier {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {:?}", e),
                     request: bin_request.into(),
                 });
             }
@@ -88,8 +90,6 @@ impl WasmMockQuerier {
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
                 } else if contract_addr == MOCK_REWARD_DISPATCHER_CONTRACT_ADDR {
-                    let api: MockApi = MockApi::default();
-
                     let config = RewardsDispatcherConfig {
                         owner: api
                             .addr_canonicalize(&String::from(MOCK_OWNER_ADDR))
@@ -104,7 +104,7 @@ impl WasmMockQuerier {
                         krp_keeper_address: api
                             .addr_canonicalize(&String::from(MOCK_KRP_KEEPER_ADDRESS))
                             .unwrap(),
-                        lido_fee_rate: Decimal::from_ratio(5u128, 100u128),
+                        krp_keeper_rate: Decimal::from_ratio(5u128, 100u128),
                         bsei_reward_denom: "kUSD".to_string(),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))

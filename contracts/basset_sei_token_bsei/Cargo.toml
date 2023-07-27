@@ -19,7 +19,7 @@ incremental = false
 overflow-checks = true
 
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
+backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 # use library feature to disable all init/handle/query exports
 library = []
 
@@ -39,3 +39,4 @@ basset_sei_rewards_dispatcher = {path = "../basset_sei_rewards_dispatcher", feat
 [dev-dependencies]
 # we only need to enable this if we use integration tests
 cosmwasm-schema = { version = "1.0.0" }
+cosmwasm-vm = { version = "1.0.0" }
