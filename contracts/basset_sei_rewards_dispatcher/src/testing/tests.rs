@@ -34,7 +34,7 @@
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coins, Api, Coin, Decimal, StdError, Uint128};
 
-use crate::contract::{execute, instantiate};
+use crate::contract::{execute, get_swap_info, instantiate};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::CONFIG;
 use crate::testing::mock_querier::{
@@ -262,82 +262,82 @@ fn test_dispatch_rewards_zero_krp_keeper_rate() {
     }
 }
 
-// #[test]
-// fn test_get_swap_info() {
-//     let mut deps = mock_dependencies(&[]);
-//
-//     let msg = default_init();
-//     let info = mock_info("creator", &coins(1000, "earth"));
-//
-//     // we can just call .unwrap() to assert this was a success
-//     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-//     assert_eq!(0, res.messages.len());
-//
-//     let config = CONFIG.load(&deps.storage).unwrap();
-//
-//     let stsei_total_bond_amount = Uint128::from(2u64);
-//     let bsei_total_bond_amount = Uint128::from(2u64);
-//     let total_sei_rewards_available = Uint128::from(20u64);
-//     let total_ust_rewards_available = Uint128::from(20u64);
-//     let bsei_2_stsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(1u64), Uint128::from(1u64));
-//     let stsei_2_bsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(1u64), Uint128::from(1u64));
-//     let (offer_coin, _) = get_swap_info(
-//         config.clone(),
-//         stsei_total_bond_amount,
-//         bsei_total_bond_amount,
-//         total_sei_rewards_available,
-//         total_ust_rewards_available,
-//         bsei_2_stsei_rewards_xchg_rate,
-//         stsei_2_bsei_rewards_xchg_rate,
-//     )
-//     .unwrap();
-//     assert_eq!(offer_coin.denom, config.bsei_reward_denom);
-//     assert_eq!(offer_coin.amount, Uint128::zero());
-//
-//     let stsei_total_bond_amount = Uint128::from(2u64);
-//     let bsei_total_bond_amount = Uint128::from(2u64);
-//     let total_sei_rewards_available = Uint128::from(20u64);
-//     let total_ust_rewards_available = Uint128::from(20u64);
-//     let bsei_2_stsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(15u64), Uint128::from(10u64));
-//     let stsei_2_bsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(10u64), Uint128::from(15u64));
-//     let (offer_coin, _) = get_swap_info(
-//         config.clone(),
-//         stsei_total_bond_amount,
-//         bsei_total_bond_amount,
-//         total_sei_rewards_available,
-//         total_ust_rewards_available,
-//         bsei_2_stsei_rewards_xchg_rate,
-//         stsei_2_bsei_rewards_xchg_rate,
-//     )
-//     .unwrap();
-//     assert_eq!(offer_coin.denom, config.bsei_reward_denom);
-//     assert_eq!(offer_coin.amount, Uint128::from(3u64));
-//
-//     let stsei_total_bond_amount = Uint128::from(2u64);
-//     let bsei_total_bond_amount = Uint128::from(2u64);
-//     let total_sei_rewards_available = Uint128::from(20u64);
-//     let total_ust_rewards_available = Uint128::from(20u64);
-//     let bsei_2_stsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(75u64), Uint128::from(100u64));
-//     let stsei_2_bsei_rewards_xchg_rate =
-//         Decimal::from_ratio(Uint128::from(100u64), Uint128::from(75u64));
-//     let (offer_coin, _) = get_swap_info(
-//         config.clone(),
-//         stsei_total_bond_amount,
-//         bsei_total_bond_amount,
-//         total_sei_rewards_available,
-//         total_ust_rewards_available,
-//         bsei_2_stsei_rewards_xchg_rate,
-//         stsei_2_bsei_rewards_xchg_rate,
-//     )
-//     .unwrap();
-//     assert_eq!(offer_coin.denom, config.stsei_reward_denom);
-//     assert_eq!(offer_coin.amount, Uint128::from(3u64));
-// }
+#[test]
+fn test_get_swap_info() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = default_init();
+    let info = mock_info("creator", &coins(1000, "earth"));
+
+    // we can just call .unwrap() to assert this was a success
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(0, res.messages.len());
+
+    let config = CONFIG.load(&deps.storage).unwrap();
+
+    let stsei_total_bond_amount = Uint128::from(2u64);
+    let bsei_total_bond_amount = Uint128::from(2u64);
+    let total_sei_rewards_available = Uint128::from(20u64);
+    let total_ust_rewards_available = Uint128::from(20u64);
+    let bsei_2_stsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(1u64), Uint128::from(1u64));
+    let stsei_2_bsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(1u64), Uint128::from(1u64));
+    let (offer_coin, _) = get_swap_info(
+        config.clone(),
+        stsei_total_bond_amount,
+        bsei_total_bond_amount,
+        total_sei_rewards_available,
+        total_ust_rewards_available,
+        bsei_2_stsei_rewards_xchg_rate,
+        stsei_2_bsei_rewards_xchg_rate,
+    )
+    .unwrap();
+    assert_eq!(offer_coin.denom, config.bsei_reward_denom);
+    assert_eq!(offer_coin.amount, Uint128::zero());
+
+    let stsei_total_bond_amount = Uint128::from(2u64);
+    let bsei_total_bond_amount = Uint128::from(2u64);
+    let total_sei_rewards_available = Uint128::from(20u64);
+    let total_ust_rewards_available = Uint128::from(20u64);
+    let bsei_2_stsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(15u64), Uint128::from(10u64));
+    let stsei_2_bsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(10u64), Uint128::from(15u64));
+    let (offer_coin, _) = get_swap_info(
+        config.clone(),
+        stsei_total_bond_amount,
+        bsei_total_bond_amount,
+        total_sei_rewards_available,
+        total_ust_rewards_available,
+        bsei_2_stsei_rewards_xchg_rate,
+        stsei_2_bsei_rewards_xchg_rate,
+    )
+    .unwrap();
+    assert_eq!(offer_coin.denom, config.bsei_reward_denom);
+    assert_eq!(offer_coin.amount, Uint128::from(3u64));
+
+    let stsei_total_bond_amount = Uint128::from(2u64);
+    let bsei_total_bond_amount = Uint128::from(2u64);
+    let total_sei_rewards_available = Uint128::from(20u64);
+    let total_ust_rewards_available = Uint128::from(20u64);
+    let bsei_2_stsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(75u64), Uint128::from(100u64));
+    let stsei_2_bsei_rewards_xchg_rate =
+        Decimal::from_ratio(Uint128::from(100u64), Uint128::from(75u64));
+    let (offer_coin, _) = get_swap_info(
+        config.clone(),
+        stsei_total_bond_amount,
+        bsei_total_bond_amount,
+        total_sei_rewards_available,
+        total_ust_rewards_available,
+        bsei_2_stsei_rewards_xchg_rate,
+        stsei_2_bsei_rewards_xchg_rate,
+    )
+    .unwrap();
+    assert_eq!(offer_coin.denom, config.stsei_reward_denom);
+    assert_eq!(offer_coin.amount, Uint128::from(3u64));
+}
 
 #[test]
 fn test_update_config() {
