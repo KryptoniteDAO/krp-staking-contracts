@@ -27,7 +27,8 @@ pub const MOCK_REWARDS_CONTRACT_ADDR: &str = "rewards";
 pub const MOCK_TOKEN_CONTRACT_ADDR: &str = "token";
 pub const MOCK_VALIDATORS_REGISTRY_ADDR: &str = "validators";
 pub const MOCK_STSEI_TOKEN_CONTRACT_ADDR: &str = "stsei_token";
-pub const MOCK_LIDO_FEE_ADDRESS: &str = "lido_fee";
+//pub const MOCK_LIDO_FEE_ADDRESS: &str = "lido_fee";
+pub const MOCK_KRP_KEEPER_ADDRESS: &str = "krp_keeper";
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
@@ -100,11 +101,11 @@ impl WasmMockQuerier {
                             .addr_canonicalize(&String::from(MOCK_REWARDS_CONTRACT_ADDR))
                             .unwrap(),
                         stsei_reward_denom: "usei".to_string(),
-                        lido_fee_address: api
-                            .addr_canonicalize(&String::from(MOCK_LIDO_FEE_ADDRESS))
+                        krp_keeper_address: api
+                            .addr_canonicalize(&String::from(MOCK_KRP_KEEPER_ADDRESS))
                             .unwrap(),
                         lido_fee_rate: Decimal::from_ratio(5u128, 100u128),
-                        bsei_reward_denom: "uusd".to_string(),
+                        bsei_reward_denom: "kUSD".to_string(),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
                 } else {

@@ -497,11 +497,11 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
             .to_string(),
         stsei_reward_denom: config.stsei_reward_denom,
         bsei_reward_denom: config.bsei_reward_denom,
-        lido_fee_address: deps
+        krp_keeper_address: deps
             .api
             .addr_humanize(&config.krp_keeper_address)?
             .to_string(),
-        lido_fee_rate: config.krp_keeper_rate,
+        krp_keeper_rate: config.krp_keeper_rate,
         swap_contract: deps.api.addr_humanize(&config.swap_contract)?.to_string(),
         swap_denoms: config.swap_denoms,
         oracle_contract: deps.api.addr_humanize(&config.oracle_contract)?.to_string(),
