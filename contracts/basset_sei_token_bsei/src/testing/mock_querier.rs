@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use basset::hub::ConfigResponse;
-// use basset_sei_rewards_dispatcher::state::Config as RewardsDispatcherConfig;
 use basset::dispatcher::ConfigResponse as RewardsDispatcherConfig;
+use basset::hub::ConfigResponse;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier, QuerierResult,
@@ -91,21 +90,16 @@ impl WasmMockQuerier {
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
                 } else if contract_addr == MOCK_REWARD_DISPATCHER_CONTRACT_ADDR {
                     let config = RewardsDispatcherConfig {
-                        owner: api
-                            .addr_canonicalize(&String::from(MOCK_OWNER_ADDR))
-                            .unwrap(),
-                        hub_contract: api
-                            .addr_canonicalize(&String::from(MOCK_HUB_CONTRACT_ADDR))
-                            .unwrap(),
-                        bsei_reward_contract: api
-                            .addr_canonicalize(&String::from(MOCK_REWARDS_CONTRACT_ADDR))
-                            .unwrap(),
-                        stsei_reward_denom: "usei".to_string(),
-                        krp_keeper_address: api
-                            .addr_canonicalize(&String::from(MOCK_KRP_KEEPER_ADDRESS))
-                            .unwrap(),
-                        krp_keeper_rate: Decimal::from_ratio(5u128, 100u128),
-                        bsei_reward_denom: "kUSD".to_string(),
+                        owner: String::from(MOCK_OWNER_ADDR),
+                        hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
+                        bsei_reward_contract: String::from(MOCK_REWARDS_CONTRACT_ADDR),
+                        bsei_reward_denom: String::from("kUSD"),
+                        stsei_reward_denom: String::from("usei"),
+                        krp_keeper_address: MOCK_KRP_KEEPER_ADDRESS.to_string(),
+                        krp_keeper_rate: Default::default(),
+                        swap_contract: String::from(MOCK_SWAP_CONTRACT_ADDR),
+                        swap_denoms: vec![],
+                        oracle_contract: String::from(MOCK_ORACLE_CONTRACT_ADDR),
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&config)))
                 } else {

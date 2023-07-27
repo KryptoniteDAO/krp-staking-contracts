@@ -38,18 +38,22 @@ use crate::contract::{execute, instantiate};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
 use crate::state::CONFIG;
 use crate::testing::mock_querier::{
-    mock_dependencies, MOCK_BSEI_REWARD_CONTRACT_ADDR, MOCK_HUB_CONTRACT_ADDR,
-    MOCK_LIDO_FEE_ADDRESS,
+    mock_dependencies, BTOKEN_REWARD_DENOM, MOCK_BSEI_REWARD_CONTRACT_ADDR, MOCK_HUB_CONTRACT_ADDR,
+    MOCK_KRP_KEEPER_CONTRACT_ADDR, MOCK_ORACLE_CONTRACT_ADDR, MOCK_SWAP_CONTRACT_ADDR,
+    STTOKEN_REWARD_DENOM,
 };
 
 fn default_init() -> InstantiateMsg {
     InstantiateMsg {
-        hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
-        bsei_reward_contract: String::from(MOCK_BSEI_REWARD_CONTRACT_ADDR),
-        bsei_reward_denom: "uusd".to_string(),
-        stsei_reward_denom: "usei".to_string(),
-        lido_fee_address: String::from(MOCK_LIDO_FEE_ADDRESS),
-        lido_fee_rate: Decimal::from_ratio(Uint128::from(5u64), Uint128::from(100u64)),
+        hub_contract: MOCK_HUB_CONTRACT_ADDR.to_string(),
+        bsei_reward_contract: MOCK_BSEI_REWARD_CONTRACT_ADDR.to_string(),
+        bsei_reward_denom: BTOKEN_REWARD_DENOM.to_string(),
+        stsei_reward_denom: STTOKEN_REWARD_DENOM.to_string(),
+        krp_keeper_address: MOCK_KRP_KEEPER_CONTRACT_ADDR.to_string(),
+        krp_keeper_rate: Decimal::from_ratio(Uint128::from(5u64), Uint128::from(100u64)),
+        swap_contract: MOCK_SWAP_CONTRACT_ADDR.to_string(),
+        swap_denoms: vec!["usei".to_string(), "kusd".to_string(), "usdr".to_string()],
+        oracle_contract: MOCK_ORACLE_CONTRACT_ADDR.to_string(),
     }
 }
 
@@ -82,7 +86,7 @@ fn test_swap_to_reward_denom() {
         TestCase {
             rewards_balance: vec![
                 Coin::new(200, "usei"),
-                Coin::new(300, "uusd"),
+                Coin::new(300, "kusd"),
                 Coin::new(500, "usdr"),
                 Coin::new(100, "mnt"),
             ],
@@ -92,12 +96,12 @@ fn test_swap_to_reward_denom() {
             expected_total_ust_rewards_available: "1300".to_string(),
             expected_offer_coin_denom: "usei".to_string(),
             expected_offer_coin_amount: "120".to_string(),
-            expected_ask_denom: "uusd".to_string(),
+            expected_ask_denom: "kusd".to_string(),
         },
         TestCase {
             rewards_balance: vec![
                 Coin::new(200, "usei"),
-                Coin::new(300, "uusd"),
+                Coin::new(300, "kusd"),
                 Coin::new(500, "usdr"),
                 Coin::new(100, "mnt"),
             ],
@@ -107,12 +111,12 @@ fn test_swap_to_reward_denom() {
             expected_total_ust_rewards_available: "1300".to_string(),
             expected_offer_coin_denom: "usei".to_string(),
             expected_offer_coin_amount: "80".to_string(),
-            expected_ask_denom: "uusd".to_string(),
+            expected_ask_denom: "kusd".to_string(),
         },
         TestCase {
             rewards_balance: vec![
                 Coin::new(200, "usei"),
-                Coin::new(300, "uusd"),
+                Coin::new(300, "kusd"),
                 Coin::new(500, "usdr"),
                 Coin::new(100, "mnt"),
             ],
@@ -122,12 +126,12 @@ fn test_swap_to_reward_denom() {
             expected_total_ust_rewards_available: "1300".to_string(),
             expected_offer_coin_denom: "usei".to_string(),
             expected_offer_coin_amount: "40".to_string(),
-            expected_ask_denom: "uusd".to_string(),
+            expected_ask_denom: "kusd".to_string(),
         },
         TestCase {
             rewards_balance: vec![
                 Coin::new(0, "usei"),
-                Coin::new(300, "uusd"),
+                Coin::new(300, "kusd"),
                 Coin::new(500, "usdr"),
                 Coin::new(100, "mnt"),
             ],
@@ -135,7 +139,7 @@ fn test_swap_to_reward_denom() {
             bsei_total_bonded: Uint128::from(2u128),
             expected_total_sei_rewards_available: "0".to_string(),
             expected_total_ust_rewards_available: "1300".to_string(),
-            expected_offer_coin_denom: "uusd".to_string(),
+            expected_offer_coin_denom: "kusd".to_string(),
             expected_offer_coin_amount: "640".to_string(),
             expected_ask_denom: "usei".to_string(),
         },
@@ -150,6 +154,7 @@ fn test_swap_to_reward_denom() {
         // we can just call .unwrap() to assert this was a success
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
+        // println!(" ", query_config(deps.as_ref()).unwrap());
 
         let info = mock_info(String::from(MOCK_HUB_CONTRACT_ADDR).as_str(), &[]);
         let msg = ExecuteMsg::SwapToRewardDenom {
@@ -183,7 +188,7 @@ fn test_swap_to_reward_denom() {
 fn test_dispatch_rewards() {
     let mut deps = mock_dependencies(&[
         Coin::new(200, "usei"),
-        Coin::new(300, "uusd"),
+        Coin::new(300, "kusd"),
         Coin::new(20, "usdr"),
     ]);
 
@@ -198,39 +203,42 @@ fn test_dispatch_rewards() {
     let msg = ExecuteMsg::DispatchRewards {};
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(1, res.messages.len());
+    assert_eq!(3, res.messages.len());
 
     for attr in res.attributes {
         if attr.key == "stsei_rewards" {
             assert_eq!("190usei", attr.value)
         }
         if attr.key == "bsei_rewards" {
-            assert_eq!("300uusd", attr.value)
+            assert_eq!("300kusd", attr.value)
         }
         if attr.key == "lido_stsei_fee" {
             assert_eq!("10usei", attr.value)
         }
         if attr.key == "lido_bsei_fee" {
-            assert_eq!("14uusd", attr.value)
+            assert_eq!("14kusd", attr.value)
         }
     }
 }
 
 #[test]
-fn test_dispatch_rewards_zero_lido_fee() {
+fn test_dispatch_rewards_zero_krp_keeper_rate() {
     let mut deps = mock_dependencies(&[
         Coin::new(200, "usei"),
-        Coin::new(300, "uusd"),
+        Coin::new(300, "kusd"),
         Coin::new(20, "usdr"),
     ]);
 
     let msg = InstantiateMsg {
-        hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
+        hub_contract: MOCK_HUB_CONTRACT_ADDR.to_string(),
         bsei_reward_contract: String::from(MOCK_BSEI_REWARD_CONTRACT_ADDR),
-        bsei_reward_denom: "uusd".to_string(),
-        stsei_reward_denom: "usei".to_string(),
-        lido_fee_address: String::from(MOCK_LIDO_FEE_ADDRESS),
-        lido_fee_rate: Decimal::zero(),
+        bsei_reward_denom: BTOKEN_REWARD_DENOM.to_string(),
+        stsei_reward_denom: STTOKEN_REWARD_DENOM.to_string(),
+        krp_keeper_address: String::from(MOCK_KRP_KEEPER_CONTRACT_ADDR),
+        krp_keeper_rate: Decimal::zero(),
+        swap_contract: String::from(MOCK_SWAP_CONTRACT_ADDR),
+        swap_denoms: vec![],
+        oracle_contract: String::from(MOCK_ORACLE_CONTRACT_ADDR),
     };
     let info = mock_info("creator", &[]);
 
@@ -242,14 +250,14 @@ fn test_dispatch_rewards_zero_lido_fee() {
     let msg = ExecuteMsg::DispatchRewards {};
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(1, res.messages.len());
+    assert_eq!(3, res.messages.len());
 
     for attr in res.attributes {
         if attr.key == "stsei_rewards" {
             assert_eq!("200usei", attr.value)
         }
         if attr.key == "bsei_rewards" {
-            assert_eq!("300uusd", attr.value)
+            assert_eq!("300kusd", attr.value)
         }
     }
 }
@@ -351,8 +359,8 @@ fn test_update_config() {
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&invalid_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -366,8 +374,8 @@ fn test_update_config() {
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -384,8 +392,8 @@ fn test_update_config() {
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -406,8 +414,8 @@ fn test_update_config() {
         bsei_reward_contract: Some(String::from("some_address")),
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -428,8 +436,8 @@ fn test_update_config() {
         bsei_reward_contract: None,
         stsei_reward_denom: Some(String::from("new_denom")),
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -451,8 +459,8 @@ fn test_update_config() {
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: Some(String::from("new_denom")),
-        lido_fee_address: None,
-        lido_fee_rate: None,
+        krp_keeper_address: None,
+        krp_keeper_rate: None,
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -465,17 +473,17 @@ fn test_update_config() {
     );
 
     let config = CONFIG.load(&deps.storage).unwrap();
-    assert_eq!(String::from("uusd"), config.bsei_reward_denom);
+    assert_eq!(String::from("kusd"), config.bsei_reward_denom);
 
-    // change lido_fee_address
+    // change krp_keeper_address
     let update_config_msg = ExecuteMsg::UpdateConfig {
         owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: Some(String::from("some_address")),
-        lido_fee_rate: None,
+        krp_keeper_address: Some(String::from("some_address")),
+        krp_keeper_rate: None,
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
@@ -486,23 +494,23 @@ fn test_update_config() {
         deps.api
             .addr_canonicalize(&String::from("some_address"))
             .unwrap(),
-        config.lido_fee_address
+        config.krp_keeper_address
     );
 
-    // change lido_fee_rate
+    // change krp_keeper_rate
     let update_config_msg = ExecuteMsg::UpdateConfig {
         owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
         bsei_reward_denom: None,
-        lido_fee_address: None,
-        lido_fee_rate: Some(Decimal::one()),
+        krp_keeper_address: None,
+        krp_keeper_rate: Some(Decimal::one()),
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
     assert!(res.is_ok());
 
     let config = CONFIG.load(&deps.storage).unwrap();
-    assert_eq!(Decimal::one(), config.lido_fee_rate);
+    assert_eq!(Decimal::one(), config.krp_keeper_rate);
 }
