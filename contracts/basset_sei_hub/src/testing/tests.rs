@@ -112,7 +112,7 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
         unbonding_period: 2,
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
-        reward_denom: "uusd".to_string(),
+        reward_denom: "kusd".to_string(),
     };
 
     let owner_info = mock_info(owner.as_str(), &[]);
@@ -215,7 +215,7 @@ fn proper_initialization() {
         unbonding_period: 210,
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
-        reward_denom: "uusd".to_string(),
+        reward_denom: "kusd".to_string(),
     };
 
     let owner = String::from("owner1");
@@ -235,7 +235,7 @@ fn proper_initialization() {
     assert_eq!(query_params.unbonding_period, 210);
     assert_eq!(query_params.peg_recovery_fee, Decimal::zero());
     assert_eq!(query_params.er_threshold, Decimal::one());
-    assert_eq!(query_params.reward_denom, "uusd");
+    assert_eq!(query_params.reward_denom, "kusd");
 
     // state storage must be initialized
     let state = State {};
@@ -304,7 +304,7 @@ fn bad_initialization() {
         unbonding_period: 210,
         peg_recovery_fee: Decimal::from_str("1.1").unwrap(),
         er_threshold: Decimal::one(),
-        reward_denom: "uusd".to_string(),
+        reward_denom: "kusd".to_string(),
     };
 
     let owner = String::from("owner1");
@@ -439,7 +439,7 @@ fn proper_bond() {
         &addr1,
         &[
             coin(bond_amount.u128(), "usei"),
-            coin(bond_amount.u128(), "uusd"),
+            coin(bond_amount.u128(), "kusd"),
         ],
     );
 
@@ -572,7 +572,7 @@ fn proper_bond_for_st_sei() {
         &addr1,
         &[
             coin(bond_amount.u128(), "usei"),
-            coin(bond_amount.u128(), "uusd"),
+            coin(bond_amount.u128(), "kusd"),
         ],
     );
 
@@ -671,8 +671,7 @@ fn proper_bond_rewards() {
     );
     assert_eq!(
         query_state.stsei_exchange_rate,
-        // Decimal::from_ratio(2u128, 1u128)
-        Decimal::from_ratio(1u128, 1u128)
+        Decimal::from_ratio(2u128, 1u128)
     );
 
     // no-send funds
@@ -700,7 +699,7 @@ fn proper_bond_rewards() {
         &reward_dispatcher_contract,
         &[
             coin(bond_amount.u128(), "usei"),
-            coin(bond_amount.u128(), "uusd"),
+            coin(bond_amount.u128(), "kusd"),
         ],
     );
 
@@ -811,25 +810,25 @@ pub fn proper_update_global_index() {
         _ => panic!("Unexpected message: {:?}", withdraw),
     }
 
-    // let swap = &res.messages[1];
-    // match swap.msg.clone() {
-    //     CosmosMsg::Wasm(WasmMsg::Execute {
-    //         contract_addr,
-    //         msg,
-    //         funds: _,
-    //     }) => {
-    //         assert_eq!(contract_addr, reward_contract);
-    //         assert_eq!(
-    //             msg,
-    //             to_binary(&SwapToRewardDenom {
-    //                 stsei_total_bonded: Uint128::from(10u64),
-    //                 bsei_total_bonded: Uint128::from(10u64),
-    //             })
-    //             .unwrap()
-    //         )
-    //     }
-    //     _ => panic!("Unexpected message: {:?}", swap),
-    // }
+    let swap = &res.messages[1];
+    match swap.msg.clone() {
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds: _,
+        }) => {
+            assert_eq!(contract_addr, reward_contract);
+            assert_eq!(
+                msg,
+                to_binary(&SwapToRewardDenom {
+                    stsei_total_bonded: Uint128::from(10u64),
+                    bsei_total_bonded: Uint128::from(10u64),
+                })
+                .unwrap()
+            )
+        }
+        _ => panic!("Unexpected message: {:?}", swap),
+    }
 
     let update_g_index = &res.messages[2];
     match update_g_index.msg.clone() {
@@ -3830,7 +3829,7 @@ pub fn test_update_params() {
     assert_eq!(params.unbonding_period, 2);
     assert_eq!(params.peg_recovery_fee, Decimal::zero());
     assert_eq!(params.er_threshold, Decimal::one());
-    assert_eq!(params.reward_denom, "uusd");
+    assert_eq!(params.reward_denom, "kusd");
 
     //test with some swap_denom.
     let update_prams = UpdateParams {
@@ -3853,7 +3852,7 @@ pub fn test_update_params() {
     assert_eq!(params.unbonding_period, 3);
     assert_eq!(params.peg_recovery_fee, Decimal::one());
     assert_eq!(params.er_threshold, Decimal::zero());
-    assert_eq!(params.reward_denom, "uusd");
+    assert_eq!(params.reward_denom, "kusd");
 
     // Test with peg_recovery_fee > 1.0.
     let update_prams = UpdateParams {
