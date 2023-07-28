@@ -128,7 +128,7 @@ fn calc_range_start(api: &dyn Api, start_after: Option<Addr>) -> StdResult<Optio
 mod test {
     use super::*;
 
-    use cosmwasm_std::testing::{mock_dependencies, mock_dependencies_with_balance};
+    use cosmwasm_std::testing::mock_dependencies_with_balance;
     use cosmwasm_std::{Api, StdResult, Storage};
     use cosmwasm_storage::{
         bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket,

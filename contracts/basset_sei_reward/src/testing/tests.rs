@@ -37,11 +37,12 @@ use cosmwasm_std::{
 };
 
 use crate::contract::{execute, instantiate, query};
+use crate::error::ContractError;
 use crate::math::{decimal_multiplication_in_256, decimal_subtraction_in_256};
 use crate::state::{store_holder, store_state, Holder, State};
 use crate::testing::mock_querier::{
     mock_dependencies, MOCK_HUB_CONTRACT_ADDR, MOCK_REWARDS_DISPATCHER_ADDR,
-    MOCK_TOKEN_CONTRACT_ADDR,
+    MOCK_SWAP_CONTRACT_ADDR, MOCK_TOKEN_CONTRACT_ADDR,
 };
 use basset::reward::{
     ConfigResponse, ExecuteMsg, HolderResponse, HoldersResponse, InstantiateMsg, QueryMsg,
@@ -49,12 +50,14 @@ use basset::reward::{
 };
 use std::str::FromStr;
 
-const DEFAULT_REWARD_DENOM: &str = "uusd";
+const DEFAULT_REWARD_DENOM: &str = "kusd";
 
 fn default_init() -> InstantiateMsg {
     InstantiateMsg {
         hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
         reward_denom: DEFAULT_REWARD_DENOM.to_string(),
+        swap_contract: MOCK_SWAP_CONTRACT_ADDR.to_string(),
+        swap_denoms: vec!["usei".to_string(), "kusd".to_string(), "usdr".to_string()],
     }
 }
 
@@ -95,7 +98,7 @@ fn proper_init() {
 // pub fn swap_to_reward_denom() {
 //     let mut deps = mock_dependencies(&[
 //         Coin {
-//             denom: "uusd".to_string(),
+//             denom: "kusd".to_string(),
 //             amount: Uint128::new(100u128),
 //         },
 //         Coin {
@@ -156,7 +159,7 @@ fn proper_init() {
 #[test]
 fn update_global_index() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 
@@ -210,7 +213,7 @@ fn update_global_index() {
 #[test]
 fn increase_balance() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 
@@ -289,7 +292,7 @@ fn increase_balance() {
 #[test]
 fn increase_balance_with_decimals() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100000u128),
     }]);
 
@@ -376,7 +379,7 @@ fn increase_balance_with_decimals() {
 #[test]
 fn decrease_balance() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 
@@ -402,7 +405,7 @@ fn decrease_balance() {
     let info = mock_info(MOCK_TOKEN_CONTRACT_ADDR, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg);
     match res {
-        Err(StdError::GenericErr { msg, .. }) => {
+        Err(ContractError::Std(StdError::GenericErr { msg, .. })) => {
             assert_eq!(msg, "Decrease amount cannot exceed user balance: 0")
         }
         _ => panic!("DO NOT ENTER HERE"),
@@ -453,7 +456,7 @@ fn decrease_balance() {
 #[test]
 fn claim_rewards() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 
@@ -503,7 +506,7 @@ fn claim_rewards() {
         vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
             to_address: String::from("addr0000"),
             amount: vec![Coin {
-                denom: "uusd".to_string(),
+                denom: "kusd".to_string(),
                 // amount: Uint128::from(99u128), // 1% tax
                 amount: Uint128::from(100u128),
             },]
@@ -527,7 +530,7 @@ fn claim_rewards() {
         vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
             to_address: String::from("addr0001"),
             amount: vec![Coin {
-                denom: "uusd".to_string(),
+                denom: "kusd".to_string(),
                 // amount: Uint128::from(99u128), // 1% tax
                 amount: Uint128::from(100u128), // 1% tax
             },]
@@ -538,7 +541,7 @@ fn claim_rewards() {
 #[test]
 fn claim_rewards_with_decimals() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(99999u128),
     }]);
 
@@ -589,7 +592,7 @@ fn claim_rewards_with_decimals() {
         vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
             to_address: String::from("addr0000"),
             amount: vec![Coin {
-                denom: "uusd".to_string(),
+                denom: "kusd".to_string(),
                 // amount: Uint128::from(99007u128), // 1% tax
                 amount: Uint128::from(99998u128),
             },]
@@ -634,7 +637,7 @@ fn claim_rewards_with_decimals() {
 #[test]
 fn query_holders() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 
@@ -781,7 +784,7 @@ fn query_holders() {
 #[test]
 fn proper_prev_balance() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "kusd".to_string(),
         amount: Uint128::new(100u128),
     }]);
 

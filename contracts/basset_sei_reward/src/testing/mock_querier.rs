@@ -15,17 +15,17 @@
 use basset::hub::ConfigResponse;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, to_binary, Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult,
-    QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
+    from_slice, to_binary, Coin, ContractResult, OwnedDeps, Querier, QuerierResult, QueryRequest,
+    SystemError, SystemResult, WasmQuery,
 };
-use sei_cosmwasm::{SeiQuery, SeiQueryWrapper, SeiRoute};
-use std::str::FromStr;
+use sei_cosmwasm::SeiQueryWrapper;
 
 pub const MOCK_HUB_CONTRACT_ADDR: &str = "hub";
 pub const MOCK_REWARDS_DISPATCHER_ADDR: &str = "rewards_dispatcher";
 pub const MOCK_TOKEN_CONTRACT_ADDR: &str = "token";
 pub const MOCK_VALIDATORS_REGISTRY_ADDR: &str = "validators";
 pub const MOCK_STSEI_TOKEN_CONTRACT_ADDR: &str = "stsei_token";
+pub const MOCK_SWAP_CONTRACT_ADDR: &str = "swap";
 
 pub fn mock_dependencies(
     contract_balance: &[Coin],
