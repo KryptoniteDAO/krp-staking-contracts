@@ -16,7 +16,7 @@
 use cosmwasm_std::entry_point;
 
 use crate::error::ContractError;
-use crate::global::{execute_swap, execute_update_global_index};
+use crate::global::execute_update_global_index;
 use crate::state::{read_config, read_state, store_config, store_state, Config, State};
 use crate::user::{
     execute_claim_rewards, execute_decrease_balance, execute_increase_balance,
@@ -86,8 +86,6 @@ pub fn execute(
                 optional_addr_validate(api, swap_contract)?,
             )
         }
-
-        ExecuteMsg::SwapToRewardDenom {} => execute_swap(deps, env, info),
         ExecuteMsg::UpdateGlobalIndex {} => execute_update_global_index(deps, env, info),
         ExecuteMsg::IncreaseBalance { address, amount } => {
             execute_increase_balance(deps, env, info, address, amount)
