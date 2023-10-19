@@ -290,6 +290,12 @@ fn process_withdraw_rate(
     }
 
     let balance_change = SignedInt::from_subtraction(hub_balance, state.prev_hub_balance);
+
+    // if balance change is negativity, return error
+    if balance_change.1 {
+        return Err(StdError::generic_err("current balance of hub contract can not be lower than prev one."));
+    }
+
     let actual_unbonded_amount = balance_change.0;
 
     let mut bsei_unbond_ratio = Decimal256::zero();
