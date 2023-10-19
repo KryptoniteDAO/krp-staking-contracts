@@ -19,7 +19,7 @@ use crate::handler::{update_oracle_contract, update_swap_contract, update_swap_d
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{read_config, store_config, Config, CONFIG};
 use basset::dispatcher::ConfigResponse;
-use basset::hub::ExecuteMsg::UpdateGlobalIndex;
+use basset::hub::ExecuteMsg::{BondRewards, UpdateGlobalIndex,};
 use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
 use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
 use cosmwasm_std::{
@@ -434,7 +434,13 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
     if info.sender != hub_addr {
         return Err(StdError::generic_err("unauthorized"));
     }
+
     let contr_addr = env.contract.address;
+    let stsei_rewards = deps
+        .querier
+        .query_balance(contr_addr.clone(), config.stsei_reward_denom.as_str())?;
+
+
     let bsei_reward_addr = deps.api.addr_humanize(&config.bsei_reward_contract)?;
     let bsei_rewards = deps
         .querier
@@ -468,6 +474,36 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
             }
             .into(),
         );
+    }
+
+    if !stsei_rewards.amount.is_zero() {
+        let keeper_rewards = stsei_rewards.amount * config.krp_keeper_rate;
+   
+        messages.push(
+            BankMsg::Send {
+                to_address: deps
+                    .api
+                    .addr_humanize(&config.krp_keeper_address)?
+                    .to_string(),
+                amount: vec![Coin {
+                    denom: config.stsei_reward_denom.clone(),
+                    amount: keeper_rewards,
+                }],
+            }
+            .into(),
+        );
+
+        let rebond_rewards = stsei_rewards.amount.checked_sub(keeper_rewards)?;
+        if !rebond_rewards.is_zero() {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: hub_addr.to_string(),
+                msg: to_binary(&BondRewards {}).unwrap(),
+                funds: vec![Coin {
+                    denom: config.stsei_reward_denom.clone(),
+                    amount: rebond_rewards,
+                }],
+            }));
+        }
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
