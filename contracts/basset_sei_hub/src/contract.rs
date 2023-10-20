@@ -325,11 +325,16 @@ pub fn receive_cw20(
 pub fn execute_update_global(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     airdrop_hooks: Option<Vec<Binary>>,
 ) -> StdResult<Response> {
     let mut messages: Vec<CosmosMsg> = vec![];
     let config = CONFIG.load(deps.storage)?;
+
+    if info.sender != deps.api.addr_humanize(&config.creator)?.to_string() {  
+        return  Err(StdError::generic_err("unauthorized"))
+    }
+    
     let reward_addr =
         deps.api
             .addr_humanize(&config.reward_dispatcher_contract.ok_or_else(|| {
