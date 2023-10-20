@@ -20,6 +20,7 @@ use cosmwasm_std::{CanonicalAddr, Decimal, StdResult, Storage};
 use cw_storage_plus::Item;
 
 pub static CONFIG: Item<Config> = Item::new("config");
+pub static NEWOWNERADDR: Item<NewOwnerAddr> = Item::new("newowneraddr");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
@@ -34,6 +35,22 @@ pub struct Config {
     pub swap_denoms: Vec<String>,
     pub oracle_contract: CanonicalAddr,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerAddr {
+    pub new_owner_addr: CanonicalAddr, 
+}
+
+
+pub fn store_new_owner(storage: &mut dyn Storage, data: &NewOwnerAddr) -> StdResult<()> {
+    NEWOWNERADDR.save(storage, data)?;
+    Ok(())
+}
+
+pub fn read_new_owner(storage: &dyn Storage) -> StdResult<NewOwnerAddr> {
+    NEWOWNERADDR.load(storage)
+}
+
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
     CONFIG.save(storage, config)?;

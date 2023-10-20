@@ -38,6 +38,13 @@ pub enum ExecuteMsg {
     },
 
     Redelegations { address: String }, 
+    
+    SetOwner {
+        new_owner_addr: String,
+    },
+
+    AcceptOwnership {
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

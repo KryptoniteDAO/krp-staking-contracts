@@ -32,7 +32,7 @@ use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::SwapToRewardDenom;
 
 use crate::bond::execute_bond;
-use crate::config::{execute_update_config, execute_update_params};
+use crate::config::{execute_update_config, execute_update_params, set_new_owner, accept_ownership};
 use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use crate::state::{
     all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists,
@@ -182,6 +182,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             validators_registry_contract,
             rewards_contract,
         ),
+        ExecuteMsg::SetOwner { new_owner_addr } => {
+            let api = deps.api;
+            set_new_owner(deps, info, api.addr_validate(&new_owner_addr)?)
+        }
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
         ExecuteMsg::SwapHook {
             airdrop_token_contract,
             airdrop_swap_contract,

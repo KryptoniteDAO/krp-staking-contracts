@@ -117,6 +117,13 @@ pub enum ExecuteMsg {
         paused: Option<bool>,
     },
 
+    SetOwner {
+        new_owner_addr: String,
+    },
+
+    AcceptOwnership {
+    },
+    
     ////////////////////
     /// User's operations
     ////////////////////
