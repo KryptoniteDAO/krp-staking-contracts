@@ -15,7 +15,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
 
 use cw20_base::allowances::{execute_decrease_allowance, execute_increase_allowance};
 use cw20_base::contract::instantiate as cw20_init;
@@ -39,6 +39,13 @@ pub fn instantiate(
         deps.storage,
         &deps.api.addr_canonicalize(&msg.hub_contract)?,
     )?;
+
+    if let Some(_marketing) = msg.marketing.clone() {
+    } else {
+        return Err(ContractError::Std(StdError::generic_err(
+            "Instantiate marketing info can't be none.",
+        )));
+    }
 
     cw20_init(
         deps,
