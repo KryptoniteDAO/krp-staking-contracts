@@ -67,7 +67,7 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // GetBufferedRewards returns the buffered amount of bSei and stSei rewards.
-    GetBufferedRewards {},
+    // GetBufferedRewards {},
     // Config returns config
     Config {},
 }
