@@ -15,9 +15,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut,
-    DistributionMsg, Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult,
-    Uint128, WasmMsg, WasmQuery,
+    attr, from_binary, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, DistributionMsg,
+    Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult, Uint128, WasmMsg,
+    WasmQuery,
 };
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
@@ -32,12 +32,13 @@ use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::SwapToRewardDenom;
 
 use crate::bond::execute_bond;
-use crate::config::{execute_update_config, execute_update_params, set_new_owner, accept_ownership};
+use crate::config::{
+    accept_ownership, execute_update_config, execute_update_params, set_new_owner,
+};
 use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use crate::state::{
-    all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists,
-    query_get_finished_amount, CONFIG,
-    CURRENT_BATCH, STATE, PARAMETERS,
+    all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists, query_get_finished_amount,
+    CONFIG, CURRENT_BATCH, PARAMETERS, STATE,
 };
 use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
 
@@ -107,8 +108,16 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+    let params: Parameters = PARAMETERS.load(deps.storage)?;
+
     if let ExecuteMsg::MigrateUnbondWaitList { limit } = msg {
-        return migrate_unbond_wait_lists(deps.storage, limit);
+        if params.paused.unwrap_or(false) {
+            return migrate_unbond_wait_lists(deps.storage, limit);
+        } else {
+            return Err(StdError::generic_err(
+                "migrate unbond wait list must paused the contract first.",
+            ));
+        }
     }
 
     if let ExecuteMsg::UpdateParams {
@@ -131,7 +140,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         );
     }
 
-    let params: Parameters = PARAMETERS.load(deps.storage)?;
     if params.paused.unwrap_or(false) {
         return Err(StdError::generic_err("the contract is temporarily paused"));
     }
@@ -236,8 +244,7 @@ pub fn execute_redelegate_proxy(
         StdError::generic_err("the validator registry contract must have been registered")
     })?;
 
-    if sender_contract_addr != validators_registry_contract
-    {
+    if sender_contract_addr != validators_registry_contract {
         return Err(StdError::generic_err("unauthorized"));
     }
 
