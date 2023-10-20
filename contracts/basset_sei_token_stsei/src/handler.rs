@@ -48,18 +48,16 @@ pub fn execute_burn(
 ) -> Result<Response, ContractError> {
     let hub_contract = deps.api.addr_humanize(&HUB_CONTRACT.load(deps.storage)?)?;
 
-    let mut messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+    if info.sender != hub_contract {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: hub_contract.to_string(),
         msg: to_binary(&CheckSlashing {})?,
         funds: vec![],
     }))];
-    if info.sender != hub_contract {
-        messages.push(SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: hub_contract.to_string(),
-            msg: to_binary(&CheckSlashing {})?,
-            funds: vec![],
-        })))
-    }
+    
     let res = cw20_burn(deps, env, info, amount)?;
     /* send message example
      use cosmwasm_std::{coins, BankMsg};
