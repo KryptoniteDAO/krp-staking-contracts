@@ -231,7 +231,7 @@ pub fn execute_redelegate_proxy(
         StdError::generic_err("the validator registry contract must have been registered")
     })?;
 
-    if sender_contract_addr != validators_registry_contract && sender_contract_addr != conf.creator
+    if sender_contract_addr != validators_registry_contract
     {
         return Err(StdError::generic_err("unauthorized"));
     }
