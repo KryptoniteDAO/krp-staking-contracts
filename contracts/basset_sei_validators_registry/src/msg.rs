@@ -33,7 +33,6 @@ pub enum ExecuteMsg {
 
     /// Update config
     UpdateConfig {
-        owner: Option<String>,
         hub_contract: Option<String>,
     },
 

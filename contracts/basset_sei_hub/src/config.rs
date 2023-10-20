@@ -114,7 +114,6 @@ pub fn execute_update_config(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    owner: Option<String>,
     rewards_dispatcher_contract: Option<String>,
     bsei_token_contract: Option<String>,
     stsei_token_contract: Option<String>,
@@ -131,14 +130,6 @@ pub fn execute_update_config(
 
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    if let Some(o) = owner {
-        let owner_raw = deps.api.addr_canonicalize(&o)?;
-
-        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.creator = owner_raw;
-            Ok(last_config)
-        })?;
-    }
     if let Some(reward) = rewards_dispatcher_contract {
         let reward_raw = deps.api.addr_canonicalize(&reward)?;
 

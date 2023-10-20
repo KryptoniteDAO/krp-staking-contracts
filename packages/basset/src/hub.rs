@@ -99,7 +99,6 @@ pub enum ExecuteMsg {
 
     /// Set the owener
     UpdateConfig {
-        owner: Option<String>,
         rewards_dispatcher_contract: Option<String>,
         validators_registry_contract: Option<String>,
         bsei_token_contract: Option<String>,
@@ -123,7 +122,7 @@ pub enum ExecuteMsg {
 
     AcceptOwnership {
     },
-    
+
     ////////////////////
     /// User's operations
     ////////////////////

@@ -72,7 +72,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ),
         ExecuteMsg::DispatchRewards {} => execute_dispatch_rewards(deps, env, info),
         ExecuteMsg::UpdateConfig {
-            owner,
             hub_contract,
             bsei_reward_contract,
             stsei_reward_denom,
@@ -83,7 +82,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             deps,
             env,
             info,
-            owner,
             hub_contract,
             bsei_reward_contract,
             stsei_reward_denom,
@@ -144,7 +142,6 @@ pub fn execute_update_config(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    owner: Option<String>,
     hub_contract: Option<String>,
     bsei_reward_contract: Option<String>,
     stsei_reward_denom: Option<String>,
@@ -156,15 +153,6 @@ pub fn execute_update_config(
     let sender_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
     if sender_raw != conf.owner {
         return Err(StdError::generic_err("unauthorized"));
-    }
-
-    if let Some(o) = owner {
-        let owner_raw = deps.api.addr_canonicalize(&o)?;
-
-        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.owner = owner_raw;
-            Ok(last_config)
-        })?;
     }
 
     if let Some(h) = hub_contract {

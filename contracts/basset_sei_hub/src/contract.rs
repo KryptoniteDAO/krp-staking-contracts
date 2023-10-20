@@ -171,7 +171,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             paused,
         ),
         ExecuteMsg::UpdateConfig {
-            owner,
             rewards_dispatcher_contract,
             bsei_token_contract,
             airdrop_registry_contract,
@@ -182,7 +181,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             deps,
             env,
             info,
-            owner,
             rewards_dispatcher_contract,
             bsei_token_contract,
             stsei_token_contract,

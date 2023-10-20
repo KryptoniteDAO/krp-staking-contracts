@@ -55,9 +55,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::AddValidator { validator } => add_validator(deps, env, info, validator),
         ExecuteMsg::RemoveValidator { address } => remove_validator(deps, env, info, address),
         ExecuteMsg::UpdateConfig {
-            owner,
             hub_contract,
-        } => execute_update_config(deps, env, info, owner, hub_contract),
+        } => execute_update_config(deps, env, info, hub_contract),
         ExecuteMsg::Redelegations { address } => redelegations(deps, env, info, address),
         ExecuteMsg::SetOwner { new_owner_addr } => {
             let api = deps.api;
@@ -107,7 +106,6 @@ pub fn execute_update_config(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    owner: Option<String>,
     hub_contract: Option<String>,
 ) -> StdResult<Response> {
     // only owner must be able to send this message.
@@ -115,15 +113,6 @@ pub fn execute_update_config(
     let owner_address = deps.api.addr_humanize(&config.owner)?;
     if info.sender != owner_address {
         return Err(StdError::generic_err("unauthorized"));
-    }
-
-    if let Some(o) = owner {
-        let owner_raw = deps.api.addr_canonicalize(&o)?;
-
-        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-            last_config.owner = owner_raw;
-            Ok(last_config)
-        })?;
     }
 
     if let Some(hub) = hub_contract {
