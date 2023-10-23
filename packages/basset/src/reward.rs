@@ -24,9 +24,6 @@ pub enum ExecuteMsg {
         swap_contract: Option<String>,
     },
 
-    /// Swap all of the balances to uusd.
-    SwapToRewardDenom {},
-
     /// Update the global index
     UpdateGlobalIndex {},
 
