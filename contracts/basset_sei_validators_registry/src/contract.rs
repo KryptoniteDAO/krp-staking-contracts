@@ -43,6 +43,9 @@ pub fn instantiate(
     )?;
 
     for v in msg.registry {
+        
+        let _validator_addr = deps.api.addr_validate(&v.address.clone())?;
+
         REGISTRY.save(deps.storage, v.address.as_str().as_bytes(), &v)?;
     }
 
@@ -139,6 +142,8 @@ pub fn add_validator(
     if info.sender != owner_address && info.sender != hub_address {
         return Err(StdError::generic_err("unauthorized"));
     }
+
+    let _validator_addr = deps.api.addr_validate(&validator.address.clone())?;
 
     REGISTRY.save(
         deps.storage,
