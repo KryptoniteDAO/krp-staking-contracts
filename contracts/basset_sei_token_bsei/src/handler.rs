@@ -76,8 +76,11 @@ pub fn execute_burn(
     let reward_contract = query_reward_contract(&deps)?;
     let hub_contract = deps.api.addr_humanize(&read_hub_contract(deps.storage)?)?;
 
+    if sender != hub_contract {
+        return Err(ContractError::Unauthorized {});
+    }
     let res: Response = cw20_burn(deps, env, info, amount)?;
-    let mut messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+    let messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: reward_contract.to_string(),
         msg: to_binary(&DecreaseBalance {
             address: sender.to_string(),
@@ -85,13 +88,7 @@ pub fn execute_burn(
         })?,
         funds: vec![],
     }))];
-    if sender != hub_contract {
-        messages.push(SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: hub_contract.to_string(),
-            msg: to_binary(&CheckSlashing {})?,
-            funds: vec![],
-        })))
-    }
+ 
     Ok(Response::new()
         .add_submessages(messages)
         .add_attributes(res.attributes))
