@@ -15,12 +15,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult};
 
 use cw20_base::allowances::{execute_decrease_allowance, execute_increase_allowance};
 use cw20_base::contract::instantiate as cw20_init;
 use cw20_base::contract::query as cw20_query;
-use cw20_base::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use cw20_base::msg::{ExecuteMsg, InstantiateMarketingInfo, InstantiateMsg, QueryMsg};
 
 use crate::handler::*;
 use crate::msg::TokenInitMsg;
@@ -39,6 +39,19 @@ pub fn instantiate(
         deps.storage,
         &deps.api.addr_canonicalize(&msg.hub_contract)?,
     )?;
+
+    if let Some(marketing_info) = msg.marketing.clone() {
+        if let Some(_market_address) = marketing_info.marketing.clone() {
+        } else {
+            return Err(ContractError::Std(StdError::generic_err(
+                "The address field in the instantiate marketing info can't be none.",
+            )));
+        }
+    } else {
+        return Err(ContractError::Std(StdError::generic_err(
+            "Instantiate marketing info can't be none.",
+        )));
+    }
 
     cw20_init(
         deps,
