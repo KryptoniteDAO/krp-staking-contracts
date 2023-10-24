@@ -37,7 +37,6 @@ pub enum ExecuteMsg {
         stsei_total_bonded: Uint128,
     },
     UpdateConfig {
-        owner: Option<String>,
         hub_contract: Option<String>,
         bsei_reward_contract: Option<String>,
         stsei_reward_denom: Option<String>,
