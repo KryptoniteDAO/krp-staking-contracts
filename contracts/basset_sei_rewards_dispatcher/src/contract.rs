@@ -17,7 +17,7 @@ use cosmwasm_std::entry_point;
 
 use crate::handler::{update_oracle_contract, update_swap_contract, update_swap_denom};
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{read_config, store_config, Config, CONFIG};
+use crate::state::{read_config, store_config, Config, CONFIG, read_new_owner, store_new_owner};
 use basset::dispatcher::ConfigResponse;
 use basset::hub::ExecuteMsg::{BondRewards, UpdateGlobalIndex,};
 use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
@@ -86,6 +86,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             krp_keeper_address,
             krp_keeper_rate,
         ),
+        ExecuteMsg::SetOwner { new_owner_addr } => {
+            let api = deps.api;
+            set_new_owner(deps, info, api.addr_validate(&new_owner_addr)?)
+        }
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
         ExecuteMsg::UpdateSwapContract { swap_contract } => {
             update_swap_contract(deps, info, swap_contract)
         }
@@ -96,6 +101,37 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             update_oracle_contract(deps, info, oracle_contract)
         }
     }
+}
+
+pub fn set_new_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_owner_addr: Addr,
+) -> StdResult<Response> {
+    let config = read_config(deps.as_ref().storage)?;
+    let mut new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    if sender_raw != config.owner {
+        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+    }
+    new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
+    store_new_owner(deps.storage, &new_owner)?;
+
+    Ok(Response::default())
+}
+
+pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+    let new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let mut config = read_config(deps.as_ref().storage)?;
+    if sender_raw != new_owner.new_owner_addr {
+        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+    }
+
+    config.owner = new_owner.new_owner_addr;
+    store_config(deps.storage, &config)?;
+
+    Ok(Response::default())
 }
 
 #[allow(clippy::too_many_arguments)]

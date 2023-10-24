@@ -14,12 +14,12 @@
 
 use cosmwasm_std::{
     attr, CosmosMsg, Decimal, DepsMut, DistributionMsg, Env, MessageInfo, Response, StdError,
-    StdResult,
+    StdResult, Addr,
 };
 
 use basset::hub::Parameters;
 
-use crate::state::{read_old_unbond_wait_lists, CONFIG, PARAMETERS};
+use crate::state::{read_old_unbond_wait_lists, CONFIG, PARAMETERS, read_new_owner, store_new_owner};
 
 /// Update general parameters
 /// Only creator/owner is allowed to execute
@@ -74,6 +74,37 @@ pub fn execute_update_params(
 
     let res = Response::new().add_attributes(vec![attr("action", "update_params")]);
     Ok(res)
+}
+
+pub fn set_new_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_owner_addr: Addr,
+) -> StdResult<Response> {
+    let config = CONFIG.load(deps.storage)?;
+    let mut new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    if sender_raw != config.creator {
+        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+    }
+    new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
+    store_new_owner(deps.storage, &new_owner)?;
+
+    Ok(Response::default())
+}
+
+pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+    let new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let mut config = CONFIG.load(deps.storage)?;
+    if sender_raw != new_owner.new_owner_addr {
+        return Err(StdError::generic_err("Unauthorized call accept_ownership function "));
+    }
+
+    config.creator = new_owner.new_owner_addr;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::default())
 }
 
 #[allow(clippy::too_many_arguments)]

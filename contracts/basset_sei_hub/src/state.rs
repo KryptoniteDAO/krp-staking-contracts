@@ -16,9 +16,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    attr, from_slice, to_vec, Decimal, Order, Response, StdError, StdResult, Storage, Uint128,
+    attr, from_slice, to_vec, Decimal, Order, Response, StdError, StdResult, Storage, Uint128, CanonicalAddr,
 };
-use cosmwasm_storage::{Bucket, PrefixedStorage, ReadonlyBucket, ReadonlyPrefixedStorage};
+use cosmwasm_storage::{Bucket, PrefixedStorage, ReadonlyBucket, ReadonlyPrefixedStorage, Singleton, ReadonlySingleton};
 
 use cw_storage_plus::Item;
 
@@ -41,8 +41,25 @@ pub static NEW_PREFIX_WAIT_MAP: &[u8] = b"v2_wait";
 pub static UNBOND_HISTORY_MAP: &[u8] = b"history_map";
 pub static PREFIX_AIRDROP_INFO: &[u8] = b"airedrop_info";
 pub static VALIDATORS: &[u8] = b"validators";
+pub static KEY_NEWOWNER: &[u8] = b"newowner";
+
 
 pub const MAX_DEFAULT_RANGE_LIMIT: u32 = 1000;
+
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerAddr {
+    pub new_owner_addr: CanonicalAddr, 
+}
+
+pub fn store_new_owner(storage: &mut dyn Storage, data: &NewOwnerAddr) -> StdResult<()> {
+    Singleton::new(storage, KEY_NEWOWNER).save(data)
+}
+
+pub fn read_new_owner(storage: &dyn Storage) -> StdResult<NewOwnerAddr> {
+    ReadonlySingleton::new(storage, KEY_NEWOWNER).load()
+}
 
 /// Store undelegation wait list per each batch
 /// HashMap<user's address, <batch_id, requested_amount>

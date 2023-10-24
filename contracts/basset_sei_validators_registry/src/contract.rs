@@ -19,12 +19,12 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    StdResult, Uint128, WasmMsg, Addr,
 };
 
 use crate::common::calculate_delegations;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::registry::{Config, Validator, ValidatorResponse, CONFIG, REGISTRY};
+use crate::registry::{Config, Validator, ValidatorResponse, CONFIG, REGISTRY, read_new_owner, store_new_owner};
 use basset::hub::ExecuteMsg::{RedelegateProxy, UpdateGlobalIndex};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -59,8 +59,47 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             hub_contract,
         } => execute_update_config(deps, env, info, owner, hub_contract),
         ExecuteMsg::Redelegations { address } => redelegations(deps, env, info, address),
+        ExecuteMsg::SetOwner { new_owner_addr } => {
+            let api = deps.api;
+            set_new_owner(deps, info, api.addr_validate(&new_owner_addr)?)
+        }
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
     }
 }
+
+
+
+pub fn set_new_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_owner_addr: Addr,
+) -> StdResult<Response> {
+    let config = CONFIG.load(deps.storage)?;
+    let mut new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    if sender_raw != config.owner {
+        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+    }
+    new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
+    store_new_owner(deps.storage, &new_owner)?;
+
+    Ok(Response::default())
+}
+
+pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+    let new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let mut config = CONFIG.load(deps.storage)?;
+    if sender_raw != new_owner.new_owner_addr {
+        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+    }
+
+    config.owner = new_owner.new_owner_addr;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::default())
+}
+
 
 /// Update the config. Update the owner and hub contract address.
 /// Only creator/owner is allowed to execute

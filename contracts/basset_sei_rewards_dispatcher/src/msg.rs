@@ -45,6 +45,12 @@ pub enum ExecuteMsg {
         krp_keeper_address: Option<String>,
         krp_keeper_rate: Option<Decimal>,
     },
+    SetOwner {
+        new_owner_addr: String,
+    },
+
+    AcceptOwnership {
+    },
     DispatchRewards {},
     UpdateSwapContract {
         swap_contract: String,
