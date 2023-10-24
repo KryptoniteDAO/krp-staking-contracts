@@ -47,6 +47,11 @@ pub fn instantiate(
         swap_denoms: msg.swap_denoms,
         oracle_contract: deps.api.addr_canonicalize(&msg.oracle_contract)?,
     };
+    
+    if msg.krp_keeper_rate > Decimal::one() {
+        return Err(StdError::generic_err("keeper rate can not be greater than 1."));
+    }
+
 
     store_config(deps.storage, &conf)?;
     Ok(Response::default())
@@ -194,6 +199,11 @@ pub fn execute_update_config(
     }
 
     if let Some(r) = krp_keeper_rate {
+        
+        if r > Decimal::one() {
+            return Err(StdError::generic_err("keeper rate can not be greater than 1."));
+        }
+    
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
             last_config.krp_keeper_rate = r;
             Ok(last_config)
