@@ -23,6 +23,22 @@ use cw_storage_plus::{Bound, Item, Map};
 pub const STATE: Item<State> = Item::new("\u{0}\u{5}state");
 pub const CONFIG: Item<Config> = Item::new("\u{0}\u{6}config");
 pub const HOLDERS: Map<&[u8], Holder> = Map::new("holders");
+pub const NEWOWNER: Item<NewOwnerAddr> = Item::new("\u{0}\u{8}newowner");
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerAddr {
+    pub new_owner_addr: CanonicalAddr, 
+}
+
+pub fn store_new_owner(storage: &mut dyn Storage, newowner: &NewOwnerAddr) -> StdResult<()> {
+    NEWOWNER.save(storage, newowner)
+}
+
+pub fn read_new_owner(storage: &dyn Storage) -> StdResult<NewOwnerAddr> {
+    NEWOWNER.load(storage)
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {

@@ -16,7 +16,7 @@ use basset::hub::ExecuteMsg::CheckSlashing;
 use basset::reward::ExecuteMsg::{DecreaseBalance, IncreaseBalance};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    coins, to_binary, Api, CosmosMsg, DepsMut, OwnedDeps, Querier, Storage, SubMsg, Uint128,
+    coins, to_json_binary, Api, CosmosMsg, DepsMut, OwnedDeps, Querier, Storage, SubMsg, Uint128,
     WasmMsg,
 };
 use cw20::{Cw20ReceiveMsg, MinterResponse, TokenInfoResponse};
@@ -153,7 +153,7 @@ fn transfer() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr1,
                     amount: Uint128::new(1u128),
                 })
@@ -162,7 +162,7 @@ fn transfer() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: addr2,
                     amount: Uint128::new(1u128),
                 })
@@ -209,7 +209,7 @@ fn transfer_from() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr1,
                     amount: Uint128::new(1u128),
                 })
@@ -218,7 +218,7 @@ fn transfer_from() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: addr2,
                     amount: Uint128::new(1u128),
                 })
@@ -251,7 +251,7 @@ fn mint() {
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-            msg: to_binary(&IncreaseBalance {
+            msg: to_json_binary(&IncreaseBalance {
                 address: addr,
                 amount: Uint128::new(1u128),
             })
@@ -285,7 +285,7 @@ fn burn() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr,
                     amount: Uint128::new(1u128),
                 })
@@ -294,7 +294,7 @@ fn burn() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_HUB_CONTRACT_ADDR),
-                msg: to_binary(&CheckSlashing {}).unwrap(),
+                msg: to_json_binary(&CheckSlashing {}).unwrap(),
                 funds: vec![],
             })),
         ]
@@ -335,7 +335,7 @@ fn burn_from() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr,
                     amount: Uint128::new(1u128),
                 })
@@ -344,7 +344,7 @@ fn burn_from() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_HUB_CONTRACT_ADDR),
-                msg: to_binary(&CheckSlashing {}).unwrap(),
+                msg: to_json_binary(&CheckSlashing {}).unwrap(),
                 funds: vec![],
             })),
         ]
@@ -374,7 +374,7 @@ fn send() {
     let msg = ExecuteMsg::Send {
         contract: dummny_contract_addr.clone(),
         amount: Uint128::new(1u128),
-        msg: to_binary(&dummy_msg).unwrap(),
+        msg: to_json_binary(&dummy_msg).unwrap(),
     };
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -384,7 +384,7 @@ fn send() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr1.clone(),
                     amount: Uint128::new(1u128),
                 })
@@ -393,7 +393,7 @@ fn send() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: dummny_contract_addr.clone(),
                     amount: Uint128::new(1u128),
                 })
@@ -407,7 +407,7 @@ fn send() {
         Cw20ReceiveMsg {
             sender: addr1,
             amount: Uint128::new(1),
-            msg: to_binary(&dummy_msg).unwrap(),
+            msg: to_json_binary(&dummy_msg).unwrap(),
         }
         .into_cosmos_msg(dummny_contract_addr)
         .unwrap()
@@ -447,7 +447,7 @@ fn send_from() {
         owner: addr1.clone(),
         contract: dummny_contract_addr.clone(),
         amount: Uint128::new(1u128),
-        msg: to_binary(&dummy_msg).unwrap(),
+        msg: to_json_binary(&dummy_msg).unwrap(),
     };
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -457,7 +457,7 @@ fn send_from() {
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: addr1,
                     amount: Uint128::new(1u128),
                 })
@@ -466,7 +466,7 @@ fn send_from() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: dummny_contract_addr.clone(),
                     amount: Uint128::new(1u128),
                 })
@@ -481,7 +481,7 @@ fn send_from() {
         Cw20ReceiveMsg {
             sender: addr2,
             amount: Uint128::new(1),
-            msg: to_binary(&dummy_msg).unwrap(),
+            msg: to_json_binary(&dummy_msg).unwrap(),
         }
         .into_cosmos_msg(dummny_contract_addr)
         .unwrap()

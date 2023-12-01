@@ -33,7 +33,7 @@
 
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    from_binary, Api, BankMsg, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128,
+    from_json, Api, BankMsg, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128,
 };
 
 use crate::contract::{execute, instantiate, query};
@@ -72,7 +72,7 @@ fn proper_init() {
     assert_eq!(0, res.messages.len());
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
-    let config_response: ConfigResponse = from_binary(&res).unwrap();
+    let config_response: ConfigResponse = from_json(&res).unwrap();
     assert_eq!(
         config_response,
         ConfigResponse {
@@ -83,7 +83,7 @@ fn proper_init() {
     );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::State {}).unwrap();
-    let state_response: StateResponse = from_binary(&res).unwrap();
+    let state_response: StateResponse = from_json(&res).unwrap();
     assert_eq!(
         state_response,
         StateResponse {
@@ -199,7 +199,7 @@ fn update_global_index() {
     execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::State {}).unwrap();
-    let state_response: StateResponse = from_binary(&res).unwrap();
+    let state_response: StateResponse = from_json(&res).unwrap();
     assert_eq!(
         state_response,
         StateResponse {
@@ -245,7 +245,7 @@ fn increase_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -277,7 +277,7 @@ fn increase_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -324,7 +324,7 @@ fn increase_balance_with_decimals() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -356,7 +356,7 @@ fn increase_balance_with_decimals() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     let index = decimal_multiplication_in_256(
         Decimal::from_ratio(Uint128::new(100000), Uint128::new(11)),
         Decimal::one(),
@@ -441,7 +441,7 @@ fn decrease_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -481,7 +481,7 @@ fn claim_rewards() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -566,7 +566,7 @@ fn claim_rewards_with_decimals() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -607,7 +607,7 @@ fn claim_rewards_with_decimals() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     let index = decimal_multiplication_in_256(
         Decimal::from_ratio(Uint128::new(99999), Uint128::new(11)),
         Decimal::one(),
@@ -623,7 +623,7 @@ fn claim_rewards_with_decimals() {
     );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::State {}).unwrap();
-    let state_response: StateResponse = from_binary(&res).unwrap();
+    let state_response: StateResponse = from_json(&res).unwrap();
     assert_eq!(
         state_response,
         StateResponse {
@@ -676,7 +676,7 @@ fn query_holders() {
         },
     )
     .unwrap();
-    let holders_response: HoldersResponse = from_binary(&res).unwrap();
+    let holders_response: HoldersResponse = from_json(&res).unwrap();
     assert_eq!(
         holders_response,
         HoldersResponse {
@@ -713,7 +713,7 @@ fn query_holders() {
         },
     )
     .unwrap();
-    let holders_response: HoldersResponse = from_binary(&res).unwrap();
+    let holders_response: HoldersResponse = from_json(&res).unwrap();
     assert_eq!(
         holders_response,
         HoldersResponse {
@@ -736,7 +736,7 @@ fn query_holders() {
         },
     )
     .unwrap();
-    let holders_response: HoldersResponse = from_binary(&res).unwrap();
+    let holders_response: HoldersResponse = from_json(&res).unwrap();
     assert_eq!(
         holders_response,
         HoldersResponse {
@@ -767,7 +767,7 @@ fn query_holders() {
         },
     )
     .unwrap();
-    let holders_response: HoldersResponse = from_binary(&res).unwrap();
+    let holders_response: HoldersResponse = from_json(&res).unwrap();
     assert_eq!(
         holders_response,
         HoldersResponse {
@@ -870,7 +870,7 @@ fn proper_prev_balance() {
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::State {}).unwrap();
-    let state_response: StateResponse = from_binary(&res).unwrap();
+    let state_response: StateResponse = from_json(&res).unwrap();
     assert_eq!(
         state_response,
         StateResponse {
@@ -888,7 +888,7 @@ fn proper_prev_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -907,7 +907,7 @@ fn proper_prev_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {
@@ -926,7 +926,7 @@ fn proper_prev_balance() {
         },
     )
     .unwrap();
-    let holder_response: HolderResponse = from_binary(&res).unwrap();
+    let holder_response: HolderResponse = from_json(&res).unwrap();
     assert_eq!(
         holder_response,
         HolderResponse {

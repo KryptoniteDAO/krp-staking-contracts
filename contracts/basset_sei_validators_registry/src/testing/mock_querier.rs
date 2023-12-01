@@ -15,7 +15,7 @@
 use crate::registry::ValidatorResponse as RegistryValidator;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, to_binary, Coin, ContractResult, FullDelegation, OwnedDeps, Querier, QuerierResult,
+   from_json, to_json_binary, Coin, ContractResult, FullDelegation, OwnedDeps, Querier, QuerierResult,
     QueryRequest, SystemError, Uint128, Validator, WasmQuery,
 };
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ pub struct WasmMockQuerier {
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<SeiQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<SeiQueryWrapper> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return QuerierResult::Err(SystemError::InvalidRequest {
@@ -66,7 +66,7 @@ impl WasmMockQuerier {
             }) => {
                 let mut validators = self.validators.clone();
                 validators.sort_by(|v1, v2| v1.total_delegated.cmp(&v2.total_delegated));
-                QuerierResult::Ok(ContractResult::from(to_binary(&validators)))
+                QuerierResult::Ok(ContractResult::from(to_json_binary(&validators)))
             }
             _ => self.base.handle_query(request),
         }

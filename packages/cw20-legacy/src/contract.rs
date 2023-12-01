@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    attr, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
     Uint128,
 };
 
@@ -281,19 +281,19 @@ pub fn execute_send(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Balance { address } => to_binary(&query_balance(deps, address)?),
-        QueryMsg::TokenInfo {} => to_binary(&query_token_info(deps)?),
-        QueryMsg::Minter {} => to_binary(&query_minter(deps)?),
+        QueryMsg::Balance { address } => to_json_binary(&query_balance(deps, address)?),
+        QueryMsg::TokenInfo {} => to_json_binary(&query_token_info(deps)?),
+        QueryMsg::Minter {} => to_json_binary(&query_minter(deps)?),
         QueryMsg::Allowance { owner, spender } => {
-            to_binary(&query_allowance(deps, owner, spender)?)
+            to_json_binary(&query_allowance(deps, owner, spender)?)
         }
         QueryMsg::AllAllowances {
             owner,
             start_after,
             limit,
-        } => to_binary(&query_all_allowances(deps, owner, start_after, limit)?),
+        } => to_json_binary(&query_all_allowances(deps, owner, start_after, limit)?),
         QueryMsg::AllAccounts { start_after, limit } => {
-            to_binary(&query_all_accounts(deps, start_after, limit)?)
+            to_json_binary(&query_all_accounts(deps, start_after, limit)?)
         }
     }
 }
@@ -332,7 +332,7 @@ pub fn query_minter(deps: Deps) -> StdResult<Option<MinterResponse>> {
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::testing::{mock_dependencies_with_balance, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, CosmosMsg, StdError, SubMsg, WasmMsg};
+    use cosmwasm_std::{coins,  CosmosMsg, StdError, SubMsg, WasmMsg, from_json};
 
     use super::*;
 
@@ -654,7 +654,7 @@ mod tests {
             QueryMsg::Balance { address: addr1 },
         )
         .unwrap();
-        let loaded: BalanceResponse = from_binary(&data).unwrap();
+        let loaded: BalanceResponse = from_json(&data).unwrap();
         assert_eq!(loaded.balance, amount1);
 
         // check balance query (empty)
@@ -666,7 +666,7 @@ mod tests {
             },
         )
         .unwrap();
-        let loaded: BalanceResponse = from_binary(&data).unwrap();
+        let loaded: BalanceResponse = from_json(&data).unwrap();
         assert_eq!(loaded.balance, Uint128::zero());
     }
 

@@ -1,4 +1,4 @@
-use crate::{state::{read_config, store_config}, error::ContractError};
+use crate::{state::{read_config, store_config, read_new_owner, store_new_owner}, error::ContractError};
 use cosmwasm_std::{DepsMut, MessageInfo, Response, StdError, Addr};
 
 
@@ -27,7 +27,6 @@ pub fn update_swap_denom(
 pub fn udpate_config(
     deps: DepsMut,
     info: MessageInfo,
-    owner_addr: Option<Addr>,
     hub_contract: Option<Addr>,
     reward_denom: Option<String>,
     swap_contract: Option<Addr>,
@@ -40,10 +39,6 @@ pub fn udpate_config(
             "update_config".to_string(),
             info.sender.to_string(),
         ));
-    }
-
-    if let Some(owner_addr) = owner_addr {
-        config.owner = deps.api.addr_canonicalize(owner_addr.as_str())?
     }
 
     if let Some(hub_contract) = hub_contract {
@@ -59,5 +54,38 @@ pub fn udpate_config(
     }
 
     store_config(deps.storage, &config)?;
+    Ok(Response::default())
+}
+
+
+
+pub fn set_new_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    new_owner_addr: Addr,
+) -> Result<Response, ContractError> {
+    let config = read_config(deps.as_ref().storage)?;
+    let mut new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    if sender_raw != config.owner {
+        return Err(ContractError::Unauthorized("set_new_owner".to_string(), info.sender.to_string()));
+    }
+    new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
+    store_new_owner(deps.storage, &new_owner)?;
+
+    Ok(Response::default())
+}
+
+pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let new_owner = read_new_owner(deps.as_ref().storage)?;
+    let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
+    let mut config =  read_config(deps.as_ref().storage)?;
+    if sender_raw != new_owner.new_owner_addr {
+        return Err(ContractError::Unauthorized("accept_ownership".to_string(), info.sender.to_string()));
+    }
+
+    config.owner = new_owner.new_owner_addr;
+    store_config(deps.storage, &config)?;
+
     Ok(Response::default())
 }

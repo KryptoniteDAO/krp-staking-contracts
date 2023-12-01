@@ -16,7 +16,7 @@ use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
 use basset::swap_ext::{AssetInfo, SimulationResponse, SwapQueryMsg};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, ContractResult, Decimal, Empty, OwnedDeps, Querier,
+    from_binary,from_json, to_json_binary, Coin, ContractResult, Decimal, Empty, OwnedDeps, Querier,
     QuerierResult, QueryRequest, SystemError, Uint128, WasmQuery,
 };
 use schemars::JsonSchema;
@@ -51,7 +51,7 @@ pub struct WasmMockQuerier {
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<Empty> = match from_slice(bin_request) {
+        let request: QueryRequest<Empty> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return QuerierResult::Err(SystemError::InvalidRequest {
@@ -78,12 +78,12 @@ impl WasmMockQuerier {
             //                 let res = TaxRateResponse {
             //                     rate: Decimal::percent(1),
             //                 };
-            //                 QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //                 QuerierResult::Ok(ContractResult::from(to_json_binary(&res)))
             //             }
             //             SeiQuery::TaxCap { denom: _ } => {
             //                 let cap = Uint128::from(1000000u128);
             //                 let res = TaxCapResponse { cap };
-            //                 QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //                 QuerierResult::Ok(ContractResult::from(to_json_binary(&res)))
             //             }
             //             SeiQuery::ExchangeRates {
             //                 base_denom,
@@ -107,7 +107,7 @@ impl WasmMockQuerier {
             //                         base_denom: base_denom.to_string(),
             //                         exchange_rates,
             //                     };
-            //                     QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //                     QuerierResult::Ok(ContractResult::from(to_json_binary(&res)))
             //                 } else if base_denom == usd_denom {
             //                     let mut exchange_rates: Vec<ExchangeRateItem> = Vec::new();
             //                     for quote_denom in quote_denoms {
@@ -127,7 +127,7 @@ impl WasmMockQuerier {
             //                         base_denom: base_denom.to_string(),
             //                         exchange_rates,
             //                     };
-            //                     QuerierResult::Ok(ContractResult::from(to_binary(&res)))
+            //                     QuerierResult::Ok(ContractResult::from(to_json_binary(&res)))
             //                 } else {
             //                     panic!("UNSUPPORTED DENOM: {}", base_denom);
             //                 }
@@ -137,15 +137,15 @@ impl WasmMockQuerier {
             //                 ask_denom,
             //             } => {
             //                 if offer_coin.denom == "usdr" && ask_denom == "kusd" {
-            //                     QuerierResult::Ok(ContractResult::from(to_binary(&SwapResponse {
+            //                     QuerierResult::Ok(ContractResult::from(to_json_binary(&SwapResponse {
             //                         receive: Coin::new(offer_coin.amount.u128() * 2, ask_denom), // 1uusd = 2usdr
             //                     })))
             //                 } else if offer_coin.denom == "usei" && ask_denom == "kusd" {
-            //                     QuerierResult::Ok(ContractResult::from(to_binary(&SwapResponse {
+            //                     QuerierResult::Ok(ContractResult::from(to_json_binary(&SwapResponse {
             //                         receive: Coin::new(offer_coin.amount.u128() * 32, ask_denom), //1usei = 32uusd
             //                     })))
             //                 } else if offer_coin.denom == "kusd" && ask_denom == "usei" {
-            //                     QuerierResult::Ok(ContractResult::from(to_binary(&SwapResponse {
+            //                     QuerierResult::Ok(ContractResult::from(to_json_binary(&SwapResponse {
             //                         receive: Coin::new(offer_coin.amount.u128() / 32, ask_denom), //1uusd = 0.03125usei
             //                     })))
             //                 } else {
@@ -181,7 +181,7 @@ impl WasmMockQuerier {
                                     spread_amount: Default::default(),
                                     commission_amount: Default::default(),
                                 };
-                                QuerierResult::Ok(ContractResult::from(to_binary(
+                                QuerierResult::Ok(ContractResult::from(to_json_binary(
                                     &simulation_response,
                                 )))
                             } else if asset_infos.starts_with(&[AssetInfo::NativeToken {
@@ -194,7 +194,7 @@ impl WasmMockQuerier {
                                     spread_amount: Default::default(),
                                     commission_amount: Default::default(),
                                 };
-                                QuerierResult::Ok(ContractResult::from(to_binary(
+                                QuerierResult::Ok(ContractResult::from(to_json_binary(
                                     &simulation_response,
                                 )))
                             } else if asset_infos.starts_with(&[AssetInfo::NativeToken {
@@ -207,7 +207,7 @@ impl WasmMockQuerier {
                                     spread_amount: Default::default(),
                                     commission_amount: Default::default(),
                                 };
-                                QuerierResult::Ok(ContractResult::from(to_binary(
+                                QuerierResult::Ok(ContractResult::from(to_json_binary(
                                     &simulation_response,
                                 )))
                             } else {
@@ -234,7 +234,7 @@ impl WasmMockQuerier {
                             if base_label == sei_denom && quote_label == usd_denom {
                                 let rates =
                                     Decimal::from_ratio(Uint128::from(32u64), Uint128::from(1u64));
-                                QuerierResult::Ok(ContractResult::from(to_binary(&rates)))
+                                QuerierResult::Ok(ContractResult::from(to_json_binary(&rates)))
                             } else {
                                 panic!("UNSUPPORTED DENOM: {}", base_label);
                             }

@@ -16,7 +16,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 #cosmwasm-std = "1.1.5"
-cosmwasm-std = "1.0.0"
+cosmwasm-std = "1.5.0"
 bigint = "4.4.3"
 schemars = "0.8.8"
 serde = { version = "1.0.147", default-features = false, features = ["derive"] }

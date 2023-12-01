@@ -18,13 +18,16 @@ use std::collections::HashMap;
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg, Addr,
+    to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128, WasmMsg,
 };
 
 use crate::common::calculate_delegations;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::registry::{Config, Validator, ValidatorResponse, CONFIG, REGISTRY, read_new_owner, store_new_owner};
+use crate::registry::{
+    read_new_owner, store_new_owner, Config, NewOwnerAddr, Validator, ValidatorResponse, CONFIG,
+    REGISTRY,
+};
 use basset::hub::ExecuteMsg::{RedelegateProxy, UpdateGlobalIndex};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -43,12 +46,17 @@ pub fn instantiate(
     )?;
 
     for v in msg.registry {
-        
         let _validator_addr = deps.api.addr_validate(&v.address.clone())?;
-
         REGISTRY.save(deps.storage, v.address.as_str().as_bytes(), &v)?;
     }
 
+    store_new_owner(
+        deps.storage,
+        &NewOwnerAddr {
+            new_owner_addr: deps.api.addr_canonicalize(info.sender.as_str())?,
+        },
+    )?;
+    
     Ok(Response::default())
 }
 
@@ -57,9 +65,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     match msg {
         ExecuteMsg::AddValidator { validator } => add_validator(deps, env, info, validator),
         ExecuteMsg::RemoveValidator { address } => remove_validator(deps, env, info, address),
-        ExecuteMsg::UpdateConfig {
-            hub_contract,
-        } => execute_update_config(deps, env, info, hub_contract),
+        ExecuteMsg::UpdateConfig { hub_contract } => {
+            execute_update_config(deps, env, info, hub_contract)
+        }
         ExecuteMsg::Redelegations { address } => redelegations(deps, env, info, address),
         ExecuteMsg::SetOwner { new_owner_addr } => {
             let api = deps.api;
@@ -68,8 +76,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
     }
 }
-
-
 
 pub fn set_new_owner(
     deps: DepsMut,
@@ -80,7 +86,9 @@ pub fn set_new_owner(
     let mut new_owner = read_new_owner(deps.as_ref().storage)?;
     let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
     if sender_raw != config.owner {
-        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+        return Err(StdError::generic_err(
+            "Unauthorized call set_new_owner function",
+        ));
     }
     new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
     store_new_owner(deps.storage, &new_owner)?;
@@ -93,7 +101,9 @@ pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response>
     let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
     let mut config = CONFIG.load(deps.storage)?;
     if sender_raw != new_owner.new_owner_addr {
-        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+        return Err(StdError::generic_err(
+            "Unauthorized call set_new_owner function",
+        ));
     }
 
     config.owner = new_owner.new_owner_addr;
@@ -101,7 +111,6 @@ pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response>
 
     Ok(Response::default())
 }
-
 
 /// Update the config. Update the owner and hub contract address.
 /// Only creator/owner is allowed to execute
@@ -214,7 +223,7 @@ pub fn remove_validator(
             };
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hub_address.clone().into_string(),
-                msg: to_binary(&regelegate_msg)?,
+                msg: to_json_binary(&regelegate_msg)?,
                 funds: vec![],
             }));
 
@@ -223,7 +232,7 @@ pub fn remove_validator(
             };
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hub_address.into_string(),
-                msg: to_binary(&msg)?,
+                msg: to_json_binary(&msg)?,
                 funds: vec![],
             }));
         }
@@ -286,7 +295,7 @@ pub fn redelegations(
             };
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hub_address.clone().into_string(),
-                msg: to_binary(&regelegate_msg)?,
+                msg: to_json_binary(&regelegate_msg)?,
                 funds: vec![],
             }));
 
@@ -295,7 +304,7 @@ pub fn redelegations(
             };
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hub_address.into_string(),
-                msg: to_binary(&msg)?,
+                msg: to_json_binary(&msg)?,
                 funds: vec![],
             }));
         }
@@ -311,9 +320,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetValidatorsForDelegation {} => {
             let mut validators = query_validators(deps)?;
             validators.sort_by(|v1, v2| v1.total_delegated.cmp(&v2.total_delegated));
-            to_binary(&validators)
+            to_json_binary(&validators)
         }
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
     }
 }
 

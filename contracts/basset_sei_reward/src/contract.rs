@@ -17,16 +17,16 @@ use cosmwasm_std::entry_point;
 
 use crate::error::ContractError;
 use crate::global::execute_update_global_index;
-use crate::state::{read_config, read_state, store_config, store_state, Config, State};
+use crate::state::{read_config, read_state, store_config, store_state, Config, State, NewOwnerAddr, store_new_owner};
 use crate::user::{
     execute_claim_rewards, execute_decrease_balance, execute_increase_balance,
     query_accrued_rewards, query_holder, query_holders,
 };
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 
-use crate::handler::{udpate_config, update_swap_denom};
+use crate::handler::{udpate_config, update_swap_denom, set_new_owner, accept_ownership};
 use basset::reward::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse,
 };
@@ -58,6 +58,13 @@ pub fn instantiate(
         },
     )?;
 
+    store_new_owner(
+        deps.storage,
+        &NewOwnerAddr {
+            new_owner_addr:  deps.api.addr_canonicalize(&info.sender.to_string())?,
+        },
+    )?;
+
     Ok(Response::default())
 }
 
@@ -71,7 +78,6 @@ pub fn execute(
     match msg {
         ExecuteMsg::ClaimRewards { recipient } => execute_claim_rewards(deps, env, info, recipient),
         ExecuteMsg::UpdateConfig {
-            owner_addr,
             hub_contract,
             reward_denom,
             swap_contract,
@@ -80,12 +86,16 @@ pub fn execute(
             udpate_config(
                 deps,
                 info,
-                optional_addr_validate(api, owner_addr)?,
                 optional_addr_validate(api, hub_contract)?,
                 reward_denom,
                 optional_addr_validate(api, swap_contract)?,
             )
         }
+        ExecuteMsg::SetOwner { new_owner_addr } => {
+            let api = deps.api;
+            set_new_owner(deps, info, api.addr_validate(&new_owner_addr)?)
+        }
+        ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
         ExecuteMsg::UpdateGlobalIndex {} => execute_update_global_index(deps, env, info),
         ExecuteMsg::IncreaseBalance { address, amount } => {
             execute_increase_balance(deps, env, info, address, amount)
@@ -102,12 +112,12 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::State {} => to_binary(&query_state(deps)?),
-        QueryMsg::AccruedRewards { address } => to_binary(&query_accrued_rewards(deps, address)?),
-        QueryMsg::Holder { address } => to_binary(&query_holder(deps, address)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::State {} => to_json_binary(&query_state(deps)?),
+        QueryMsg::AccruedRewards { address } => to_json_binary(&query_accrued_rewards(deps, address)?),
+        QueryMsg::Holder { address } => to_json_binary(&query_holder(deps, address)?),
         QueryMsg::Holders { start_after, limit } => {
-            to_binary(&query_holders(deps, start_after, limit)?)
+            to_json_binary(&query_holders(deps, start_after, limit)?)
         }
     }
 }

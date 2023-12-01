@@ -14,7 +14,7 @@
 
 use basset::hub::{ConfigResponse, QueryMsg};
 use cosmwasm_std::{
-    to_binary, Addr, CanonicalAddr, Deps, QueryRequest, StdError, StdResult, WasmQuery,
+    to_json_binary, Addr, CanonicalAddr, Deps, QueryRequest, StdError, StdResult, WasmQuery,
 };
 
 pub fn query_token_contract_address(
@@ -23,7 +23,7 @@ pub fn query_token_contract_address(
 ) -> StdResult<CanonicalAddr> {
     let conf: ConfigResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: hub_contract_addr.to_string(),
-        msg: to_binary(&QueryMsg::Config {})?,
+        msg: to_json_binary(&QueryMsg::Config {})?,
     }))?;
 
     deps.api.addr_canonicalize(
@@ -39,7 +39,7 @@ pub fn query_rewards_dispatcher_contract_address(
 ) -> StdResult<CanonicalAddr> {
     let conf: ConfigResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: hub_contract_addr.to_string(),
-        msg: to_binary(&QueryMsg::Config {})?,
+        msg: to_json_binary(&QueryMsg::Config {})?,
     }))?;
 
     deps.api.addr_canonicalize(

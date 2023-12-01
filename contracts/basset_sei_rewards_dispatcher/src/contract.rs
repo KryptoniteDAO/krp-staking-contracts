@@ -17,13 +17,15 @@ use cosmwasm_std::entry_point;
 
 use crate::handler::{update_oracle_contract, update_swap_contract, update_swap_denom};
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{read_config, store_config, Config, CONFIG, read_new_owner, store_new_owner};
+use crate::state::{
+    read_config, read_new_owner, store_config, store_new_owner, Config, NewOwnerAddr, CONFIG,
+};
 use basset::dispatcher::ConfigResponse;
-use basset::hub::ExecuteMsg::{BondRewards, UpdateGlobalIndex,};
+use basset::hub::ExecuteMsg::{BondRewards, UpdateGlobalIndex};
 use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
 use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
 use cosmwasm_std::{
-    attr, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Fraction,
+    attr, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Fraction,
     MessageInfo, QueryRequest, Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 use std::ops::Mul;
@@ -47,13 +49,22 @@ pub fn instantiate(
         swap_denoms: msg.swap_denoms,
         oracle_contract: deps.api.addr_canonicalize(&msg.oracle_contract)?,
     };
-    
+
     if msg.krp_keeper_rate > Decimal::one() {
-        return Err(StdError::generic_err("keeper rate can not be greater than 1."));
+        return Err(StdError::generic_err(
+            "keeper rate can not be greater than 1.",
+        ));
     }
 
-
     store_config(deps.storage, &conf)?;
+
+    store_new_owner(
+        deps.storage,
+        &NewOwnerAddr {
+            new_owner_addr: conf.owner.clone(),
+        },
+    )?;
+
     Ok(Response::default())
 }
 
@@ -115,7 +126,9 @@ pub fn set_new_owner(
     let mut new_owner = read_new_owner(deps.as_ref().storage)?;
     let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
     if sender_raw != config.owner {
-        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+        return Err(StdError::generic_err(
+            "Unauthorized call set_new_owner function",
+        ));
     }
     new_owner.new_owner_addr = deps.api.addr_canonicalize(&new_owner_addr.to_string())?;
     store_new_owner(deps.storage, &new_owner)?;
@@ -128,7 +141,9 @@ pub fn accept_ownership(deps: DepsMut, info: MessageInfo) -> StdResult<Response>
     let sender_raw = deps.api.addr_canonicalize(&info.sender.to_string())?;
     let mut config = read_config(deps.as_ref().storage)?;
     if sender_raw != new_owner.new_owner_addr {
-        return Err(StdError::generic_err("Unauthorized call set_new_owner function"));
+        return Err(StdError::generic_err(
+            "Unauthorized call set_new_owner function",
+        ));
     }
 
     config.owner = new_owner.new_owner_addr;
@@ -187,11 +202,12 @@ pub fn execute_update_config(
     }
 
     if let Some(r) = krp_keeper_rate {
-        
         if r > Decimal::one() {
-            return Err(StdError::generic_err("keeper rate can not be greater than 1."));
+            return Err(StdError::generic_err(
+                "keeper rate can not be greater than 1.",
+            ));
         }
-    
+
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
             last_config.krp_keeper_rate = r;
             Ok(last_config)
@@ -366,7 +382,7 @@ pub(crate) fn query_swap_simulation(
     };
     let simulation_response = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: contract_addr.clone(),
-        msg: to_binary(&SwapQueryMsg::QuerySimulation {
+        msg: to_json_binary(&SwapQueryMsg::QuerySimulation {
             asset_infos,
             offer_asset,
         })?,
@@ -388,7 +404,7 @@ pub(crate) fn create_swap_msg(
     };
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: swap_addr,
-        msg: to_binary(&swap_msg).unwrap(),
+        msg: to_json_binary(&swap_msg).unwrap(),
         funds: vec![coin.clone()],
     });
     Ok(msg)
@@ -403,7 +419,7 @@ pub(crate) fn get_exchange_rates(
     let querier = &deps.querier;
     let a_2_b_xchg_rate: Decimal = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: oracle_addr.to_string(),
-        msg: to_binary(&PythOracleQueryMsg::QueryExchangeRateByAssetLabel {
+        msg: to_json_binary(&PythOracleQueryMsg::QueryExchangeRateByAssetLabel {
             base_label: denom_a.to_string(),
             quote_label: denom_b.to_string(),
         })?,
@@ -474,7 +490,6 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
         .querier
         .query_balance(contr_addr.clone(), config.stsei_reward_denom.as_str())?;
 
-
     let bsei_reward_addr = deps.api.addr_humanize(&config.bsei_reward_contract)?;
     let bsei_rewards = deps
         .querier
@@ -512,7 +527,7 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
 
     if !stsei_rewards.amount.is_zero() {
         let keeper_rewards = stsei_rewards.amount * config.krp_keeper_rate;
-   
+
         messages.push(
             BankMsg::Send {
                 to_address: deps
@@ -531,7 +546,7 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
         if !rebond_rewards.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hub_addr.to_string(),
-                msg: to_binary(&BondRewards {}).unwrap(),
+                msg: to_json_binary(&BondRewards {}).unwrap(),
                 funds: vec![Coin {
                     denom: config.stsei_reward_denom.clone(),
                     amount: rebond_rewards,
@@ -542,7 +557,7 @@ pub fn execute_dispatch_rewards(deps: DepsMut, env: Env, info: MessageInfo) -> S
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: bsei_reward_addr.to_string(),
-        msg: to_binary(&UpdateGlobalIndex {
+        msg: to_json_binary(&UpdateGlobalIndex {
             airdrop_hooks: None,
         })
         .unwrap(),
@@ -581,8 +596,8 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
-       // QueryMsg::GetBufferedRewards {} => unimplemented!(),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        // QueryMsg::GetBufferedRewards {} => unimplemented!(),
     }
 }
 

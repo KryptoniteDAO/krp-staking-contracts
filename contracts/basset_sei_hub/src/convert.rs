@@ -16,7 +16,7 @@ use crate::contract::{query_total_bsei_issued, query_total_stsei_issued, slashin
 use crate::math::decimal_division;
 use crate::state::{CONFIG, CURRENT_BATCH, PARAMETERS, STATE};
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, to_json_binary, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use std::ops::Mul;
@@ -196,7 +196,7 @@ fn mint_message(contract: String, recipient: String, amount: Uint128) -> StdResu
     let mint_msg = Cw20ExecuteMsg::Mint { recipient, amount };
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&mint_msg)?,
+        msg: to_json_binary(&mint_msg)?,
         funds: vec![],
     }))
 }
@@ -205,7 +205,7 @@ fn burn_message(contract: String, amount: Uint128) -> StdResult<CosmosMsg> {
     let burn_msg = Cw20ExecuteMsg::Burn { amount };
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&burn_msg)?,
+        msg: to_json_binary(&burn_msg)?,
         funds: vec![],
     }))
 }

@@ -36,7 +36,7 @@ use std::str::FromStr;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::testing::{MockApi, MockStorage};
 use cosmwasm_std::{
-    coin, coins, from_binary, to_binary, to_vec, Addr, Api, BankMsg, Coin, CosmosMsg, Decimal,
+    coin, coins, from_json, to_json_binary, to_json_vec, Addr, Api, BankMsg, Coin, CosmosMsg, Decimal,
     DepsMut, DistributionMsg, Env, FullDelegation, MessageInfo, OwnedDeps, Querier, QueryRequest,
     Response, StakingMsg, StdError, StdResult, Storage, Uint128, Validator, WasmMsg, WasmQuery,
 };
@@ -119,7 +119,7 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
     instantiate(deps.as_mut(), mock_env(), owner_info.clone(), msg).unwrap();
 
     let register_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         rewards_dispatcher_contract: Some(reward_contract),
         bsei_token_contract: Some(bsei_token_contract),
         stsei_token_contract: Some(stsei_token_contract),
@@ -150,7 +150,7 @@ pub fn do_bond(
         .querier
         .query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: String::from("validators_registry"),
-            msg: to_binary(&QueryValidators::GetValidatorsForDelegation {}).unwrap(),
+            msg: to_json_binary(&QueryValidators::GetValidatorsForDelegation {}).unwrap(),
         }))
         .unwrap();
 
@@ -170,7 +170,7 @@ pub fn do_bond_stsei(
         .querier
         .query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: String::from("validators_registry"),
-            msg: to_binary(&QueryValidators::GetValidatorsForDelegation {}).unwrap(),
+            msg: to_json_binary(&QueryValidators::GetValidatorsForDelegation {}).unwrap(),
         }))
         .unwrap();
 
@@ -192,7 +192,7 @@ pub fn do_unbond(
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr,
         amount,
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
 
     execute(deps, env, info, receive).unwrap()
@@ -229,7 +229,7 @@ fn proper_initialization() {
     // check parameters storage
     let params = Params {};
     let query_params: Parameters =
-        from_binary(&query(deps.as_ref(), mock_env(), params).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), params).unwrap()).unwrap();
     assert_eq!(query_params.epoch_period, 30);
     assert_eq!(query_params.underlying_coin_denom, "usei");
     assert_eq!(query_params.unbonding_period, 210);
@@ -240,7 +240,7 @@ fn proper_initialization() {
     // state storage must be initialized
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     let expected_result = StateResponse {
         bsei_exchange_rate: Decimal::one(),
         stsei_exchange_rate: Decimal::one(),
@@ -259,7 +259,7 @@ fn proper_initialization() {
     // config storage must be initialized
     let conf = Config {};
     let query_conf: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), conf).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), conf).unwrap()).unwrap();
     let expected_conf = ConfigResponse {
         owner: String::from("owner1"),
         reward_dispatcher_contract: None,
@@ -276,7 +276,7 @@ fn proper_initialization() {
     // current branch storage must be initialized
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(
         query_batch,
         CurrentBatchResponse {
@@ -395,7 +395,7 @@ fn proper_bond() {
             assert_eq!(contract_addr, String::from("token"));
             assert_eq!(
                 msg,
-                to_binary(&Cw20ExecuteMsg::Mint {
+                to_json_binary(&Cw20ExecuteMsg::Mint {
                     recipient: addr1.clone(),
                     amount: bond_amount,
                 })
@@ -408,7 +408,7 @@ fn proper_bond() {
     // get total bonded
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.total_bond_bsei_amount, bond_amount);
     assert_eq!(query_state.bsei_exchange_rate, Decimal::one());
 
@@ -528,7 +528,7 @@ fn proper_bond_for_st_sei() {
             assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Cw20ExecuteMsg::Mint {
+                to_json_binary(&Cw20ExecuteMsg::Mint {
                     recipient: addr1.clone(),
                     amount: bond_amount,
                 })
@@ -541,7 +541,7 @@ fn proper_bond_for_st_sei() {
     // get total bonded
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.total_bond_stsei_amount, bond_amount);
     assert_eq!(query_state.stsei_exchange_rate, Decimal::one());
 
@@ -664,7 +664,7 @@ fn proper_bond_rewards() {
     // get total bonded
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(
         query_state.total_bond_stsei_amount,
         bond_amount + bond_amount // BondForStSei + BondRewards
@@ -796,7 +796,7 @@ pub fn proper_update_global_index() {
 
     let last_index_query = State {};
     let last_modification: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), last_index_query).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), last_index_query).unwrap()).unwrap();
     assert_eq!(
         &last_modification.last_index_modification,
         &env.block.time.seconds()
@@ -820,7 +820,7 @@ pub fn proper_update_global_index() {
             assert_eq!(contract_addr, reward_contract);
             assert_eq!(
                 msg,
-                to_binary(&SwapToRewardDenom {
+                to_json_binary(&SwapToRewardDenom {
                     stsei_total_bonded: Uint128::from(10u64),
                     bsei_total_bonded: Uint128::from(10u64),
                 })
@@ -838,7 +838,7 @@ pub fn proper_update_global_index() {
             funds: _,
         }) => {
             assert_eq!(contract_addr, reward_contract);
-            assert_eq!(msg, to_binary(&DispatchRewards {}).unwrap())
+            assert_eq!(msg, to_json_binary(&DispatchRewards {}).unwrap())
         }
         _ => panic!("Unexpected message: {:?}", update_g_index),
     }
@@ -1040,7 +1040,7 @@ pub fn proper_receive() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1.clone(),
         amount: Uint128::from(10u64),
-        msg: to_binary(&{}).unwrap(),
+        msg: to_json_binary(&{}).unwrap(),
     });
 
     let token_info = mock_info(&token_contract, &[]);
@@ -1052,7 +1052,7 @@ pub fn proper_receive() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1.clone(),
         amount: Uint128::from(10u64),
-        msg: to_binary(&failed_unbond).unwrap(),
+        msg: to_json_binary(&failed_unbond).unwrap(),
     });
 
     let invalid_info = mock_info(&invalid, &[]);
@@ -1064,7 +1064,7 @@ pub fn proper_receive() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1,
         amount: Uint128::from(10u64),
-        msg: to_binary(&successful_unbond).unwrap(),
+        msg: to_json_binary(&successful_unbond).unwrap(),
     });
 
     let valid_info = mock_info(&token_contract, &[]);
@@ -1081,7 +1081,7 @@ pub fn proper_receive() {
             assert_eq!(contract_addr, token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(10u64)
                 })
                 .unwrap()
@@ -1145,7 +1145,7 @@ pub fn proper_unbond() {
     //check the current batch before unbond
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
@@ -1154,7 +1154,7 @@ pub fn proper_unbond() {
     // check the state before unbond
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(
         query_state.last_unbonded_time,
         mock_env().block.time.seconds()
@@ -1166,7 +1166,7 @@ pub fn proper_unbond() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(1u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let res = execute(deps.as_mut(), mock_env(), token_info, receive).unwrap();
     assert_eq!(1, res.messages.len());
@@ -1184,7 +1184,7 @@ pub fn proper_unbond() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(5u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let token_info = mock_info(&token_contract, &[]);
     let res = execute(deps.as_mut(), mock_env(), token_info.clone(), receive).unwrap();
@@ -1204,7 +1204,7 @@ pub fn proper_unbond() {
             assert_eq!(contract_addr, token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(5u64)
                 })
                 .unwrap()
@@ -1218,7 +1218,7 @@ pub fn proper_unbond() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::from(6u64));
 
@@ -1230,7 +1230,7 @@ pub fn proper_unbond() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(2u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let res = execute(deps.as_mut(), env.clone(), token_info, receive).unwrap();
     assert_eq!(2, res.messages.len());
@@ -1245,7 +1245,7 @@ pub fn proper_unbond() {
             assert_eq!(contract_addr, token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(2u64)
                 })
                 .unwrap()
@@ -1264,21 +1264,21 @@ pub fn proper_unbond() {
     // check the current batch
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
     // check the state
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.last_unbonded_time, env.block.time.seconds());
     assert_eq!(query_state.total_bond_bsei_amount, Uint128::from(2u64));
 
     // the last request (2) gets combined and processed with the previous requests (1, 5)
     let waitlist = UnbondRequests { address: bob };
     let query_unbond: UnbondRequestsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
     assert_eq!(query_unbond.requests[0].0, 1);
     assert_eq!(query_unbond.requests[0].1, Uint128::from(8u64));
 
@@ -1287,7 +1287,7 @@ pub fn proper_unbond() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(8u64));
     assert_eq!(res.history[0].bsei_applied_exchange_rate, Decimal::one());
     assert!(
@@ -1341,7 +1341,7 @@ pub fn proper_receive_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1.clone(),
         amount: Uint128::from(10u64),
-        msg: to_binary(&{}).unwrap(),
+        msg: to_json_binary(&{}).unwrap(),
     });
 
     let token_info = mock_info(&stsei_token_contract, &[]);
@@ -1353,7 +1353,7 @@ pub fn proper_receive_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1.clone(),
         amount: Uint128::from(10u64),
-        msg: to_binary(&failed_unbond).unwrap(),
+        msg: to_json_binary(&failed_unbond).unwrap(),
     });
 
     let invalid_info = mock_info(&invalid, &[]);
@@ -1365,7 +1365,7 @@ pub fn proper_receive_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: addr1,
         amount: Uint128::from(10u64),
-        msg: to_binary(&successful_unbond).unwrap(),
+        msg: to_json_binary(&successful_unbond).unwrap(),
     });
 
     let valid_info = mock_info(&stsei_token_contract, &[]);
@@ -1382,7 +1382,7 @@ pub fn proper_receive_stsei() {
             assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(10u64)
                 })
                 .unwrap()
@@ -1446,7 +1446,7 @@ pub fn proper_unbond_stsei() {
     //check the current batch before unbond
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
     assert_eq!(query_batch.requested_stsei, Uint128::zero());
@@ -1456,7 +1456,7 @@ pub fn proper_unbond_stsei() {
     // check the state before unbond
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(
         query_state.last_unbonded_time,
         mock_env().block.time.seconds()
@@ -1468,7 +1468,7 @@ pub fn proper_unbond_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(1u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let res = execute(deps.as_mut(), mock_env(), token_info, receive).unwrap();
     assert_eq!(1, res.messages.len());
@@ -1486,7 +1486,7 @@ pub fn proper_unbond_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(5u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let token_info = mock_info(&stsei_token_contract, &[]);
     let res = execute(deps.as_mut(), mock_env(), token_info.clone(), receive).unwrap();
@@ -1506,7 +1506,7 @@ pub fn proper_unbond_stsei() {
             assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(5u64)
                 })
                 .unwrap()
@@ -1520,7 +1520,7 @@ pub fn proper_unbond_stsei() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_stsei, Uint128::from(6u64));
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
@@ -1533,7 +1533,7 @@ pub fn proper_unbond_stsei() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: bob.clone(),
         amount: Uint128::from(2u64),
-        msg: to_binary(&successful_bond).unwrap(),
+        msg: to_json_binary(&successful_bond).unwrap(),
     });
     let res = execute(deps.as_mut(), env.clone(), token_info, receive).unwrap();
     assert_eq!(2, res.messages.len());
@@ -1548,7 +1548,7 @@ pub fn proper_unbond_stsei() {
             assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Burn {
+                to_json_binary(&Burn {
                     amount: Uint128::from(2u64)
                 })
                 .unwrap()
@@ -1567,7 +1567,7 @@ pub fn proper_unbond_stsei() {
     // check the current batch
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
     assert_eq!(query_batch.requested_stsei, Uint128::zero());
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
@@ -1575,7 +1575,7 @@ pub fn proper_unbond_stsei() {
     // check the state
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.last_unbonded_time, env.block.time.seconds());
     assert_eq!(query_state.total_bond_bsei_amount, Uint128::from(0u64));
     assert_eq!(query_state.total_bond_stsei_amount, Uint128::from(2u64));
@@ -1583,7 +1583,7 @@ pub fn proper_unbond_stsei() {
     // the last request (2) gets combined and processed with the previous requests (1, 5)
     let waitlist = UnbondRequests { address: bob };
     let query_unbond: UnbondRequestsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
     assert_eq!(query_unbond.requests[0].0, 1);
     assert_eq!(query_unbond.requests[0].2, Uint128::from(8u64));
 
@@ -1592,7 +1592,7 @@ pub fn proper_unbond_stsei() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].stsei_amount, Uint128::from(8u64));
     assert_eq!(res.history[0].stsei_applied_exchange_rate, Decimal::one());
     assert!(
@@ -1855,7 +1855,7 @@ pub fn proper_slashing() {
     let expected_er = Decimal::from_ratio(Uint128::from(900u64), Uint128::from(1000u64));
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     //bond again to see the update exchange rate
@@ -1879,7 +1879,7 @@ pub fn proper_slashing() {
     let expected_er = Decimal::from_ratio(Uint128::from(1900u64), Uint128::from(2111u64));
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     let delegate = &res.messages[0];
@@ -1901,7 +1901,7 @@ pub fn proper_slashing() {
             assert_eq!(contract_addr, token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Mint {
+                to_json_binary(&Mint {
                     recipient: info.sender.to_string(),
                     amount: Uint128::from(1111u64),
                 })
@@ -1973,7 +1973,7 @@ pub fn proper_slashing() {
     let expected_er = Decimal::from_ratio(Uint128::from(1000u128), Uint128::from(1111u128));
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     env.block.time = env.block.time.plus_seconds(90);
@@ -1985,7 +1985,7 @@ pub fn proper_slashing() {
     let expected_er = Decimal::from_ratio(Uint128::from(1000u128), Uint128::from(1111u128));
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.bsei_exchange_rate, expected_er);
 
     let sent_message = &wdraw_unbonded_res.messages[0];
@@ -2043,7 +2043,7 @@ pub fn proper_slashing_stsei() {
 
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.stsei_exchange_rate.to_string(), "0.9");
 
     //bond again to see the update exchange rate
@@ -2057,7 +2057,7 @@ pub fn proper_slashing_stsei() {
     let expected_er = "0.9";
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
         query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
@@ -2082,7 +2082,7 @@ pub fn proper_slashing_stsei() {
             assert_eq!(contract_addr, stsei_token_contract);
             assert_eq!(
                 msg,
-                to_binary(&Mint {
+                to_json_binary(&Mint {
                     recipient: info.sender.to_string(),
                     amount: Uint128::from(1000u64),
                 })
@@ -2144,7 +2144,7 @@ pub fn proper_slashing_stsei() {
 
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
         query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
@@ -2158,7 +2158,7 @@ pub fn proper_slashing_stsei() {
 
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(
         query_exchange_rate.stsei_exchange_rate.to_string(),
         expected_er
@@ -2280,7 +2280,7 @@ pub fn proper_withdraw_unbonded() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(0u64));
 
     env.block.time = env.block.time.plus_seconds(91);
@@ -2298,7 +2298,7 @@ pub fn proper_withdraw_unbonded() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -2310,7 +2310,7 @@ pub fn proper_withdraw_unbonded() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(20u64));
     assert_eq!(res.history[0].batch_id, 1);
 
@@ -2319,7 +2319,7 @@ pub fn proper_withdraw_unbonded() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(20u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -2341,14 +2341,14 @@ pub fn proper_withdraw_unbonded() {
         address: bob.clone(),
     };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 
     let waitlist = UnbondRequests {
         address: bob.clone(),
     };
     let query_unbond: UnbondRequestsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
     assert_eq!(
         query_unbond,
         UnbondRequestsResponse {
@@ -2360,7 +2360,7 @@ pub fn proper_withdraw_unbonded() {
     // because of one that we add for each batch
     let state = State {};
     let state_query: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
     assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
 }
@@ -2475,7 +2475,7 @@ pub fn proper_withdraw_unbonded_stsei() {
 
     let state = State {};
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(query_state.total_bond_stsei_amount, Uint128::from(160u64));
     assert_eq!(
         query_state.stsei_exchange_rate,
@@ -2487,7 +2487,7 @@ pub fn proper_withdraw_unbonded_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(0u64));
 
     env.block.time = env.block.time.plus_seconds(91);
@@ -2505,7 +2505,7 @@ pub fn proper_withdraw_unbonded_stsei() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -2517,7 +2517,7 @@ pub fn proper_withdraw_unbonded_stsei() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].stsei_amount, Uint128::from(20u64));
     assert_eq!(res.history[0].batch_id, 1);
 
@@ -2526,7 +2526,7 @@ pub fn proper_withdraw_unbonded_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(40u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -2548,14 +2548,14 @@ pub fn proper_withdraw_unbonded_stsei() {
         address: bob.clone(),
     };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 
     let waitlist = UnbondRequests {
         address: bob.clone(),
     };
     let query_unbond: UnbondRequestsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
     assert_eq!(
         query_unbond,
         UnbondRequestsResponse {
@@ -2567,7 +2567,7 @@ pub fn proper_withdraw_unbonded_stsei() {
     // because of one that we add for each batch
     let state = State {};
     let state_query: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
     assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
 }
@@ -2688,7 +2688,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(0u64));
 
     env.block.time = env.block.time.plus_seconds(91);
@@ -2706,7 +2706,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -2719,7 +2719,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(100u64));
     assert_eq!(res.history[0].stsei_amount, Uint128::from(100u64));
     assert_eq!(res.history[0].batch_id, 1);
@@ -2729,7 +2729,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(300u64));
 
     let wdraw_unbonded_msg = ExecuteMsg::WithdrawUnbonded {};
@@ -2752,14 +2752,14 @@ pub fn proper_withdraw_unbonded_both_tokens() {
         address: bob.clone(),
     };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 
     let waitlist = UnbondRequests {
         address: bob.clone(),
     };
     let query_unbond: UnbondRequestsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), waitlist).unwrap()).unwrap();
     assert_eq!(
         query_unbond,
         UnbondRequestsResponse {
@@ -2771,7 +2771,7 @@ pub fn proper_withdraw_unbonded_both_tokens() {
     // because of one that we add for each batch
     let state = State {};
     let state_query: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), state).unwrap()).unwrap();
     assert_eq!(state_query.prev_hub_balance, Uint128::from(0u64));
     assert_eq!(state_query.bsei_exchange_rate, Decimal::one());
     assert_eq!(state_query.stsei_exchange_rate.to_string(), "2");
@@ -2873,7 +2873,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(0u64));
 
     env.block.time = env.block.time.plus_seconds(91);
@@ -2892,7 +2892,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -2905,7 +2905,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(1000u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -2925,7 +2925,7 @@ pub fn proper_withdraw_unbonded_respect_slashing() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 }
 
@@ -3025,7 +3025,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(0u64));
 
     env.block.time = env.block.time.plus_seconds(91);
@@ -3044,7 +3044,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stsei() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -3057,7 +3057,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(1000u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -3077,7 +3077,7 @@ pub fn proper_withdraw_unbonded_respect_slashing_stsei() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 }
 
@@ -3155,7 +3155,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_bsei_with_fee, unbond_amount);
 
@@ -3181,7 +3181,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
     assert_eq!(query_batch.requested_bsei_with_fee, Uint128::zero());
 
@@ -3190,7 +3190,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1");
     assert!(
@@ -3204,7 +3204,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::zero());
 
     env.block.time = env.block.time.plus_seconds(1091);
@@ -3222,7 +3222,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -3235,7 +3235,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(1000u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -3255,7 +3255,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 
     let all_batches = AllHistory {
@@ -3263,7 +3263,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].bsei_applied_exchange_rate.to_string(), "1");
     assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "0.899");
@@ -3348,7 +3348,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_stsei, unbond_amount);
 
@@ -3374,7 +3374,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
 
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 2);
     assert_eq!(query_batch.requested_stsei, Uint128::zero());
 
@@ -3383,7 +3383,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "1");
     assert!(
@@ -3397,7 +3397,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), mock_env(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::zero());
 
     env.block.time = env.block.time.plus_seconds(1091);
@@ -3415,7 +3415,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
         address: bob.clone(),
     };
     let query_unbonded = query(deps.as_ref(), mock_env(), all_unbonded).unwrap();
-    let res: UnbondRequestsResponse = from_binary(&query_unbonded).unwrap();
+    let res: UnbondRequestsResponse = from_json(&query_unbonded).unwrap();
     assert_eq!(res.requests.len(), 1);
     //the amount should be 10
     assert_eq!(&res.address, &bob);
@@ -3428,7 +3428,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
         address: bob.clone(),
     };
     let query_with = query(deps.as_ref(), env.clone(), withdrawable).unwrap();
-    let res: WithdrawableUnbondedResponse = from_binary(&query_with).unwrap();
+    let res: WithdrawableUnbondedResponse = from_json(&query_with).unwrap();
     assert_eq!(res.withdrawable, Uint128::from(1000u64));
 
     let success_res = execute(deps.as_mut(), env, info, wdraw_unbonded_msg).unwrap();
@@ -3448,7 +3448,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 
     let all_batches = AllHistory {
@@ -3456,7 +3456,7 @@ pub fn proper_withdraw_unbonded_respect_inactivity_slashing_stsei() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].stsei_applied_exchange_rate.to_string(), "1");
     assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "0.899");
@@ -3588,7 +3588,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1.164");
     assert!(
@@ -3619,7 +3619,7 @@ pub fn proper_withdraw_unbond_with_dummies() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 }
 
@@ -3744,7 +3744,7 @@ pub fn proper_withdraw_unbond_with_dummies_stsei() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].stsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].stsei_withdraw_rate.to_string(), "1.164");
     assert!(
@@ -3775,7 +3775,7 @@ pub fn proper_withdraw_unbond_with_dummies_stsei() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 }
 
@@ -3823,7 +3823,7 @@ pub fn test_update_params() {
     assert_eq!(res.messages.len(), 0);
 
     let params: Parameters =
-        from_binary(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
     assert_eq!(params.epoch_period, 20);
     assert_eq!(params.underlying_coin_denom, "usei");
     assert_eq!(params.unbonding_period, 2);
@@ -3846,7 +3846,7 @@ pub fn test_update_params() {
     assert_eq!(res.messages.len(), 0);
 
     let params: Parameters =
-        from_binary(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
     assert_eq!(params.epoch_period, 20);
     assert_eq!(params.underlying_coin_denom, "usei");
     assert_eq!(params.unbonding_period, 3);
@@ -3885,7 +3885,7 @@ pub fn test_update_params() {
     assert_eq!(res.messages.len(), 0);
 
     let params: Parameters =
-        from_binary(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), Params {}).unwrap()).unwrap();
 
     assert_eq!(params.er_threshold, Decimal::one());
 }
@@ -3933,7 +3933,7 @@ pub fn proper_recovery_fee() {
 
     let get_params = Params {};
     let parmas: Parameters =
-        from_binary(&query(deps.as_ref(), mock_env(), get_params).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), get_params).unwrap()).unwrap();
     assert_eq!(parmas.epoch_period, 30);
     assert_eq!(parmas.underlying_coin_denom, "usei");
     assert_eq!(parmas.unbonding_period, 2);
@@ -3965,7 +3965,7 @@ pub fn proper_recovery_fee() {
 
     let ex_rate = State {};
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), ex_rate).unwrap()).unwrap();
     assert_eq!(query_exchange_rate.bsei_exchange_rate.to_string(), "0.9");
 
     //Bond again to see the applied result
@@ -3999,7 +3999,7 @@ pub fn proper_recovery_fee() {
             funds: _,
         }) => assert_eq!(
             msg,
-            to_binary(&Mint {
+            to_json_binary(&Mint {
                 recipient: bob.clone(),
                 amount: mint_amount_with_fee,
             })
@@ -4013,7 +4013,7 @@ pub fn proper_recovery_fee() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: token_contract.clone(),
         amount: unbond_amount,
-        msg: to_binary(&unbond).unwrap(),
+        msg: to_json_binary(&unbond).unwrap(),
     });
 
     let new_balance = bond_amount - unbond_amount;
@@ -4027,7 +4027,7 @@ pub fn proper_recovery_fee() {
         unbond_amount * Decimal::from_ratio(Uint128::from(999u64), Uint128::from(1000u64));
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     assert_eq!(query_batch.id, 1);
     assert_eq!(query_batch.requested_bsei_with_fee, bonded_with_fee);
 
@@ -4042,14 +4042,14 @@ pub fn proper_recovery_fee() {
     let receive = Receive(Cw20ReceiveMsg {
         sender: token_contract,
         amount: unbond_amount,
-        msg: to_binary(&second_unbond).unwrap(),
+        msg: to_json_binary(&second_unbond).unwrap(),
     });
 
     let query_state: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
     let current_batch = CurrentBatch {};
     let query_batch: CurrentBatchResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), current_batch).unwrap()).unwrap();
     let res = execute(deps.as_mut(), env.clone(), token_info.clone(), receive).unwrap();
     assert_eq!(2, res.messages.len());
 
@@ -4114,7 +4114,7 @@ pub fn proper_recovery_fee() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     // amount should be 99 + 99 since we store the requested amount with peg fee applied.
     assert_eq!(
         res.history[0].bsei_amount,
@@ -4158,7 +4158,7 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(&config_query.bsei_token_contract.unwrap(), &token_contract);
     assert_eq!(
         &config_query.airdrop_registry_contract.unwrap(),
@@ -4174,7 +4174,6 @@ pub fn proper_update_config() {
 
     // only the owner can call this message
     let update_config = UpdateConfig {
-        owner: Some(new_owner.clone()),
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
@@ -4188,7 +4187,6 @@ pub fn proper_update_config() {
 
     // change the owner
     let update_config = UpdateConfig {
-        owner: Some(new_owner.clone()),
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
@@ -4231,7 +4229,6 @@ pub fn proper_update_config() {
     assert_eq!(res.unwrap_err(), StdError::generic_err("unauthorized"));
 
     let update_config = UpdateConfig {
-        owner: None,
         rewards_dispatcher_contract: Some(String::from("new reward")),
         bsei_token_contract: None,
         airdrop_registry_contract: None,
@@ -4250,14 +4247,13 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(
         config_query.reward_dispatcher_contract.unwrap(),
         String::from("new reward")
     );
 
     let update_config = UpdateConfig {
-        owner: None,
         rewards_dispatcher_contract: None,
         bsei_token_contract: Some(String::from("new token")),
         airdrop_registry_contract: None,
@@ -4274,7 +4270,7 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
 
     //make sure the other configs are still the same.
     assert_eq!(
@@ -4288,7 +4284,6 @@ pub fn proper_update_config() {
     );
 
     let update_config = UpdateConfig {
-        owner: None,
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: Some(String::from("new airdrop")),
@@ -4302,14 +4297,13 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(
         config_query.airdrop_registry_contract.unwrap(),
         String::from("new airdrop")
     );
 
     let update_config = UpdateConfig {
-        owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
         validators_registry_contract: Some(String::from("new registry")),
@@ -4323,14 +4317,13 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(
         config_query.validators_registry_contract.unwrap(),
         String::from("new registry"),
     );
 
     let update_config = UpdateConfig {
-        owner: None,
         rewards_dispatcher_contract: None,
         airdrop_registry_contract: None,
         validators_registry_contract: None,
@@ -4347,7 +4340,7 @@ pub fn proper_update_config() {
 
     let config = Config {};
     let config_query: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
     assert_eq!(
         config_query.stsei_token_contract.unwrap(),
         stsei_token_contract,
@@ -4378,7 +4371,7 @@ fn proper_claim_airdrop() {
         airdrop_token_contract: String::from("airdrop_token"),
         airdrop_contract: String::from("MIR_contract"),
         airdrop_swap_contract: String::from("airdrop_swap"),
-        claim_msg: to_binary(&MIRMsg::MIRClaim {}).unwrap(),
+        claim_msg: to_json_binary(&MIRMsg::MIRClaim {}).unwrap(),
         swap_msg: Default::default(),
     };
 
@@ -4398,7 +4391,7 @@ fn proper_claim_airdrop() {
         res.messages[0].msg.clone(),
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::from("MIR_contract"),
-            msg: to_binary(&MIRMsg::MIRClaim {}).unwrap(),
+            msg: to_json_binary(&MIRMsg::MIRClaim {}).unwrap(),
             funds: vec![],
         })
     );
@@ -4406,7 +4399,7 @@ fn proper_claim_airdrop() {
         res.messages[1].msg.clone(),
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: mock_env().contract.address.to_string(),
-            msg: to_binary(&ExecuteMsg::SwapHook {
+            msg: to_json_binary(&ExecuteMsg::SwapHook {
                 airdrop_token_contract: String::from("airdrop_token"),
                 airdrop_swap_contract: String::from("airdrop_swap"),
                 swap_msg: Default::default(),
@@ -4439,7 +4432,7 @@ fn proper_swap_hook() {
     let swap_msg = ExecuteMsg::SwapHook {
         airdrop_token_contract: String::from("airdrop_token"),
         airdrop_swap_contract: String::from("swap_contract"),
-        swap_msg: to_binary(&PairHandleMsg::Swap {
+        swap_msg: to_json_binary(&PairHandleMsg::Swap {
             belief_price: None,
             max_spread: None,
             to: Some(reward_contract.clone()),
@@ -4476,10 +4469,10 @@ fn proper_swap_hook() {
         res.messages[0].msg.clone(),
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::from("airdrop_token"),
-            msg: to_binary(&Cw20ExecuteMsg::Send {
+            msg: to_json_binary(&Cw20ExecuteMsg::Send {
                 contract: String::from("swap_contract"),
                 amount: Uint128::from(1000u64),
-                msg: to_binary(&PairHandleMsg::Swap {
+                msg: to_json_binary(&PairHandleMsg::Swap {
                     belief_price: None,
                     max_spread: None,
                     to: Some(reward_contract),
@@ -4535,14 +4528,14 @@ fn proper_update_global_index_with_airdrop() {
         (&stsei_token_contract, &[(&addr1, &Uint128::from(10u64))]),
     ]);
 
-    let binary_msg = to_binary(&FabricateMIRClaim {
+    let binary_msg = to_json_binary(&FabricateMIRClaim {
         stage: 0,
         amount: Uint128::from(1000u64),
         proof: vec!["proof".to_string()],
     })
     .unwrap();
 
-    let binary_msg2 = to_binary(&FabricateANCClaim {
+    let binary_msg2 = to_json_binary(&FabricateANCClaim {
         stage: 0,
         amount: Uint128::from(1000u64),
         proof: vec!["proof".to_string()],
@@ -4696,7 +4689,7 @@ fn test_convert_to_stsei_with_slashing_and_peg_fee() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: sender_addr.clone(),
         amount: Uint128::from(1000u64),
-        msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+        msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
     });
     let r = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let applied_exchange_rate = &r
@@ -4723,7 +4716,7 @@ fn test_convert_to_stsei_with_slashing_and_peg_fee() {
         r.messages[0].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: stsei_token_contract,
-            msg: to_binary(&mint_msg).unwrap(),
+            msg: to_json_binary(&mint_msg).unwrap(),
             funds: vec![],
         })
     );
@@ -4735,13 +4728,13 @@ fn test_convert_to_stsei_with_slashing_and_peg_fee() {
         r.messages[1].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: bsei_token_contract,
-            msg: to_binary(&burn_msg).unwrap(),
+            msg: to_json_binary(&burn_msg).unwrap(),
             funds: vec![],
         })
     );
 
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
     let new_exchange = query_exchange_rate.bsei_exchange_rate;
     assert_eq!("0.42", new_exchange.to_string());
 }
@@ -4821,7 +4814,7 @@ fn test_convert_to_bsei_with_slashing_and_peg_fee() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: sender_addr.clone(),
         amount: Uint128::from(1000u64),
-        msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+        msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
     });
     let r = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let applied_exchange_rate = &r
@@ -4848,7 +4841,7 @@ fn test_convert_to_bsei_with_slashing_and_peg_fee() {
         r.messages[0].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: bsei_token_contract,
-            msg: to_binary(&mint_msg).unwrap(),
+            msg: to_json_binary(&mint_msg).unwrap(),
             funds: vec![],
         })
     );
@@ -4860,13 +4853,13 @@ fn test_convert_to_bsei_with_slashing_and_peg_fee() {
         r.messages[1].msg,
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: stsei_token_contract,
-            msg: to_binary(&burn_msg).unwrap(),
+            msg: to_json_binary(&burn_msg).unwrap(),
             funds: vec![],
         })
     );
 
     let query_exchange_rate: StateResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), State {}).unwrap()).unwrap();
     let new_exchange = query_exchange_rate.bsei_exchange_rate;
     assert_eq!("1.3", new_exchange.to_string());
 }
@@ -4910,7 +4903,7 @@ fn test_receive_cw20() {
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1000u64),
-            msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+            msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
         });
         let _ = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     }
@@ -4920,7 +4913,7 @@ fn test_receive_cw20() {
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1001u64),
-            msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+            msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
         });
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
@@ -4937,7 +4930,7 @@ fn test_receive_cw20() {
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr.clone(),
             amount: Uint128::from(1000u64),
-            msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+            msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
         });
         let _ = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     }
@@ -4947,7 +4940,7 @@ fn test_receive_cw20() {
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: sender_addr,
             amount: Uint128::from(1001u64),
-            msg: to_binary(&Cw20HookMsg::Convert {}).unwrap(),
+            msg: to_json_binary(&Cw20HookMsg::Convert {}).unwrap(),
         });
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(
@@ -5075,7 +5068,6 @@ pub fn test_pause() {
     // try to run a not allowed action (anything but update config and migrate_unbond_wait_list),
     // should return an error
     let update_config = UpdateConfig {
-        owner: Some(owner.clone()),
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
@@ -5103,7 +5095,6 @@ pub fn test_pause() {
 
     // execute the same handler, should work
     let update_config = UpdateConfig {
-        owner: Some(owner.clone()),
         rewards_dispatcher_contract: None,
         bsei_token_contract: None,
         airdrop_registry_contract: None,
@@ -5114,8 +5105,8 @@ pub fn test_pause() {
     let info = mock_info(&owner, &[]);
     execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
 
-    let batch = to_vec("batch_id").unwrap();
-    let addr = to_vec("sender_address").unwrap();
+    let batch = to_json_vec("batch_id").unwrap();
+    let addr = to_json_vec("sender_address").unwrap();
     let mut position_indexer: Bucket<UnbondWaitEntity> =
         Bucket::multilevel(deps.storage.borrow_mut(), &[OLD_PREFIX_WAIT_MAP, &addr]);
     position_indexer
@@ -5308,7 +5299,7 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
         limit: None,
     };
     let res: AllHistoryResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), all_batches).unwrap()).unwrap();
     assert_eq!(res.history[0].bsei_amount, Uint128::from(1000u64));
     assert_eq!(res.history[0].bsei_withdraw_rate.to_string(), "1.001");
     assert!(
@@ -5339,6 +5330,6 @@ pub fn proper_withdraw_unbond_with_rogue_transfer() {
     // there should not be any result
     let withdrawable = WithdrawableUnbonded { address: bob };
     let query_with: WithdrawableUnbondedResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
+        from_json(&query(deps.as_ref(), mock_env(), withdrawable).unwrap()).unwrap();
     assert_eq!(query_with.withdrawable, Uint128::from(0u64));
 }

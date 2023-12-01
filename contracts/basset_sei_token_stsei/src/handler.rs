@@ -14,7 +14,7 @@
 
 use basset::hub::ExecuteMsg::CheckSlashing;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, SubMsg, Uint128, WasmMsg,
 };
 use cw20::Logo;
 use cw20_base::allowances::{
@@ -54,7 +54,7 @@ pub fn execute_burn(
 
     let messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: hub_contract.to_string(),
-        msg: to_binary(&CheckSlashing {})?,
+        msg: to_json_binary(&CheckSlashing {})?,
         funds: vec![],
     }))];
     
@@ -114,7 +114,7 @@ pub fn execute_burn_from(
     let res = cw20_burn_from(deps, env, info, owner, amount)?;
     let messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: hub_contract.to_string(),
-        msg: to_binary(&CheckSlashing {})?,
+        msg: to_json_binary(&CheckSlashing {})?,
         funds: vec![],
     }))];
     Ok(Response::new()

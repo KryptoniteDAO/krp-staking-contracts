@@ -20,7 +20,7 @@ use basset_sei_validators_registry::common::calculate_delegations;
 use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
 use basset_sei_validators_registry::registry::ValidatorResponse;
 use cosmwasm_std::{
-    attr, to_binary, Coin, CosmosMsg, DepsMut, Env, MessageInfo, QueryRequest, Response,
+    attr, to_json_binary, Coin, CosmosMsg, DepsMut, Env, MessageInfo, QueryRequest, Response,
     StakingMsg, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 use cw20::Cw20ExecuteMsg;
@@ -138,7 +138,7 @@ pub fn execute_bond(
                 .api
                 .addr_humanize(&validators_registry_contract)?
                 .to_string(),
-            msg: to_binary(&QueryValidators::GetValidatorsForDelegation {})?,
+            msg: to_json_binary(&QueryValidators::GetValidatorsForDelegation {})?,
         }))?;
 
     if validators.is_empty() {
@@ -196,7 +196,7 @@ pub fn execute_bond(
 
     external_call_msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_address.to_string(),
-        msg: to_binary(&mint_msg)?,
+        msg: to_json_binary(&mint_msg)?,
         funds: vec![],
     }));
 

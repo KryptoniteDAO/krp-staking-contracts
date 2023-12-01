@@ -18,10 +18,16 @@ pub enum ExecuteMsg {
     /// Owner's operations
     ///////////////////
     UpdateConfig {
-        owner_addr: Option<String>,
         hub_contract: Option<String>,
         reward_denom: Option<String>, 
         swap_contract: Option<String>,
+    },
+
+    SetOwner {
+        new_owner_addr: String,
+    },
+
+    AcceptOwnership {
     },
 
     /// Update the global index

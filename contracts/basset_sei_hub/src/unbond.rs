@@ -22,7 +22,7 @@ use basset_sei_validators_registry::common::calculate_undelegations;
 use basset_sei_validators_registry::registry::ValidatorResponse;
 use cosmwasm_bignumber::{Decimal256, Uint256};
 use cosmwasm_std::{
-    attr, coin, coins, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
+    attr, coin, coins, to_json_binary, BankMsg, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response,
     StakingMsg, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
@@ -105,7 +105,7 @@ pub(crate) fn execute_unbond(
     let burn_msg = Cw20ExecuteMsg::Burn { amount };
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_address.to_string(),
-        msg: to_binary(&burn_msg)?,
+        msg: to_json_binary(&burn_msg)?,
         funds: vec![],
     }));
 
@@ -478,7 +478,7 @@ pub(crate) fn execute_unbond_stsei(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_address.to_string(),
-        msg: to_binary(&burn_msg)?,
+        msg: to_json_binary(&burn_msg)?,
         funds: vec![],
     }));
 

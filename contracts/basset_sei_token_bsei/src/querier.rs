@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cosmwasm_std::{to_binary, Addr, DepsMut, QueryRequest, StdError, StdResult, WasmQuery};
+use cosmwasm_std::{to_json_binary, Addr, DepsMut, QueryRequest, StdError, StdResult, WasmQuery};
 
 use crate::state::read_hub_contract;
 use basset::hub::{ConfigResponse, QueryMsg as HubQueryMsg};
@@ -24,7 +24,7 @@ pub fn query_reward_contract(deps: &DepsMut) -> StdResult<Addr> {
 
     let config: ConfigResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: hub_address.to_string(),
-        msg: to_binary(&HubQueryMsg::Config {})?,
+        msg: to_json_binary(&HubQueryMsg::Config {})?,
     }))?;
 
     let rewards_dispatcher_address = deps.api.addr_humanize(
@@ -43,7 +43,7 @@ pub fn query_reward_contract(deps: &DepsMut) -> StdResult<Addr> {
     let rewards_dispatcher_config: DispatcherConfigResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: rewards_dispatcher_address.to_string(),
-            msg: to_binary(&RewardsDispatcherQueryMsg::Config {})?,
+            msg: to_json_binary(&RewardsDispatcherQueryMsg::Config {})?,
         }))?;
 
     let bsei_reward_address = deps

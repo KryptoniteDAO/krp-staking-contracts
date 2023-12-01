@@ -18,7 +18,7 @@ use crate::testing::mock_querier::{mock_dependencies, WasmMockQuerier};
 use basset::hub::ExecuteMsg::{RedelegateProxy, UpdateGlobalIndex};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, Api, Coin, CosmosMsg, FullDelegation, StdError, Uint128,
+    coin, coins, to_json_binary, Addr, Api, Coin, CosmosMsg, FullDelegation, StdError, Uint128,
     Validator as CosmosValidator, WasmMsg,
 };
 
@@ -108,7 +108,6 @@ fn ownership_tests() {
 
     let msg = ExecuteMsg::UpdateConfig {
         hub_contract: None,
-        owner: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg);
     assert_eq!(res.err().unwrap(), StdError::generic_err("unauthorized"));
@@ -128,7 +127,6 @@ fn update_config() {
     let new_hub_address = String::from("new_hub_contract");
     let msg = ExecuteMsg::UpdateConfig {
         hub_contract: Some(new_hub_address.clone()),
-        owner: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg);
     assert!(res.is_ok());
@@ -140,7 +138,6 @@ fn update_config() {
 
     let new_owner = String::from("new_owner");
     let msg = ExecuteMsg::UpdateConfig {
-        owner: Some(new_owner.clone()),
         hub_contract: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg);
@@ -271,7 +268,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&RedelegateProxy {
+                        to_json_binary(&RedelegateProxy {
                             src_validator: validator4.address,
                             redelegations: vec![
                                 (validator1.clone().address, coin(27, "uluna")),
@@ -296,7 +293,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&UpdateGlobalIndex {
+                        to_json_binary(&UpdateGlobalIndex {
                             airdrop_hooks: None
                         })
                         .unwrap()
@@ -379,7 +376,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&RedelegateProxy {
+                        to_json_binary(&RedelegateProxy {
                             src_validator: validator3.address,
                             redelegations: vec![
                                 (validator1.clone().address, coin(18, "uluna")),
@@ -403,7 +400,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&UpdateGlobalIndex {
+                        to_json_binary(&UpdateGlobalIndex {
                             airdrop_hooks: None
                         })
                         .unwrap()
@@ -472,7 +469,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&RedelegateProxy {
+                        to_json_binary(&RedelegateProxy {
                             src_validator: validator2.address.clone(),
                             redelegations: vec![(validator1.clone().address, coin(55, "uluna"))],
                         })
@@ -493,7 +490,7 @@ fn remove_validator() {
                 }) => {
                     assert_eq!(
                         *msg.0,
-                        to_binary(&UpdateGlobalIndex {
+                        to_json_binary(&UpdateGlobalIndex {
                             airdrop_hooks: None
                         })
                         .unwrap()

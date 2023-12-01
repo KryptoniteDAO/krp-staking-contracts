@@ -15,9 +15,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, DistributionMsg,
+    attr, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, DistributionMsg,
     Env, MessageInfo, QueryRequest, Response, StakingMsg, StdError, StdResult, Uint128, WasmMsg,
-    WasmQuery,
+    WasmQuery, from_json,
 };
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg, Cw20ReceiveMsg, TokenInfoResponse};
 
@@ -38,7 +38,7 @@ use crate::config::{
 use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use crate::state::{
     all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists, query_get_finished_amount,
-    CONFIG, CURRENT_BATCH, PARAMETERS, STATE,
+    store_new_owner, NewOwnerAddr, CONFIG, CURRENT_BATCH, PARAMETERS, STATE,
 };
 use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
 
@@ -50,11 +50,11 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let sender = info.sender;
-    let sndr_raw = deps.api.addr_canonicalize(sender.as_str())?;
+    let sender_raw = deps.api.addr_canonicalize(sender.as_str())?;
 
     // store config
     let data = Config {
-        creator: sndr_raw,
+        creator: sender_raw.clone(),
         reward_dispatcher_contract: None,
         validators_registry_contract: None,
         bsei_token_contract: None,
@@ -101,6 +101,13 @@ pub fn instantiate(
         requested_stsei: Default::default(),
     };
     CURRENT_BATCH.save(deps.storage, &batch)?;
+
+    store_new_owner(
+        deps.storage,
+        &NewOwnerAddr {
+            new_owner_addr: sender_raw,
+        },
+    )?;
 
     let res = Response::new();
     Ok(res)
@@ -290,7 +297,7 @@ pub fn receive_cw20(
         ));
     };
 
-    match from_binary(&cw20_msg.msg)? {
+    match from_json(&cw20_msg.msg)? {
         Cw20HookMsg::Unbond {} => {
             if contract_addr == bsei_contract_addr {
                 execute_unbond(deps, env, cw20_msg.amount, cw20_msg.sender)
@@ -331,10 +338,10 @@ pub fn execute_update_global(
     let mut messages: Vec<CosmosMsg> = vec![];
     let config = CONFIG.load(deps.storage)?;
 
-    if info.sender != deps.api.addr_humanize(&config.creator)?.to_string() {  
-        return  Err(StdError::generic_err("unauthorized"))
+    if info.sender != deps.api.addr_humanize(&config.creator)?.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
-    
+
     let reward_addr =
         deps.api
             .addr_humanize(&config.reward_dispatcher_contract.ok_or_else(|| {
@@ -370,13 +377,13 @@ pub fn execute_update_global(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: reward_addr.to_string(),
-        msg: to_binary(&swap_msg)?,
+        msg: to_json_binary(&swap_msg)?,
         funds: vec![],
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: reward_addr.to_string(),
-        msg: to_binary(&DispatchRewards {})?,
+        msg: to_json_binary(&DispatchRewards {})?,
         funds: vec![],
     }));
 
@@ -502,7 +509,7 @@ pub fn claim_airdrop(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&SwapHook {
+        msg: to_json_binary(&SwapHook {
             airdrop_token_contract,
             airdrop_swap_contract,
             swap_msg,
@@ -528,7 +535,7 @@ pub fn swap_hook(
     let airdrop_token_balance: BalanceResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: airdrop_token_contract.to_string(),
-            msg: to_binary(&Cw20QueryMsg::Balance {
+            msg: to_json_binary(&Cw20QueryMsg::Balance {
                 address: env.contract.address.to_string(),
             })?,
         }))?;
@@ -541,7 +548,7 @@ pub fn swap_hook(
     }
     let messages: Vec<CosmosMsg> = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: airdrop_token_contract.clone(),
-        msg: to_binary(&Cw20ExecuteMsg::Send {
+        msg: to_json_binary(&Cw20ExecuteMsg::Send {
             contract: airdrop_swap_contract,
             amount: airdrop_token_balance.balance,
             msg: swap_msg,
@@ -578,16 +585,16 @@ pub fn execute_slashing(mut deps: DepsMut, env: Env) -> StdResult<Response> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::State {} => to_binary(&query_state(deps, env)?),
-        QueryMsg::CurrentBatch {} => to_binary(&query_current_batch(deps)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::State {} => to_json_binary(&query_state(deps, env)?),
+        QueryMsg::CurrentBatch {} => to_json_binary(&query_current_batch(deps)?),
         QueryMsg::WithdrawableUnbonded { address } => {
-            to_binary(&query_withdrawable_unbonded(deps, address, env)?)
+            to_json_binary(&query_withdrawable_unbonded(deps, address, env)?)
         }
-        QueryMsg::Parameters {} => to_binary(&query_params(deps)?),
-        QueryMsg::UnbondRequests { address } => to_binary(&query_unbond_requests(deps, address)?),
+        QueryMsg::Parameters {} => to_json_binary(&query_params(deps)?),
+        QueryMsg::UnbondRequests { address } => to_json_binary(&query_unbond_requests(deps, address)?),
         QueryMsg::AllHistory { start_from, limit } => {
-            to_binary(&query_unbond_requests_limitation(deps, start_from, limit)?)
+            to_json_binary(&query_unbond_requests_limitation(deps, start_from, limit)?)
         }
     }
 }
@@ -705,7 +712,7 @@ pub(crate) fn query_total_bsei_issued(deps: Deps) -> StdResult<Uint128> {
     let token_info: TokenInfoResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: token_address.to_string(),
-            msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
+            msg: to_json_binary(&Cw20QueryMsg::TokenInfo {})?,
         }))?;
     Ok(token_info.total_supply)
 }
@@ -720,7 +727,7 @@ pub(crate) fn query_total_stsei_issued(deps: Deps) -> StdResult<Uint128> {
     let token_info: TokenInfoResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: token_address.to_string(),
-            msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
+            msg: to_json_binary(&Cw20QueryMsg::TokenInfo {})?,
         }))?;
     Ok(token_info.total_supply)
 }

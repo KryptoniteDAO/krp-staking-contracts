@@ -16,7 +16,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    attr, from_slice, to_vec, Decimal, Order, Response, StdError, StdResult, Storage, Uint128, CanonicalAddr,
+    attr,from_json, to_json_vec, Decimal, Order, Response, StdError, StdResult, Storage, Uint128, CanonicalAddr,
 };
 use cosmwasm_storage::{Bucket, PrefixedStorage, ReadonlyBucket, ReadonlyPrefixedStorage, Singleton, ReadonlySingleton};
 
@@ -70,8 +70,8 @@ pub fn store_unbond_wait_list(
     amount: Uint128,
     unbond_type: UnbondType,
 ) -> StdResult<()> {
-    let batch = to_vec(&batch_id)?;
-    let addr = to_vec(&sender_address)?;
+    let batch = to_json_vec(&batch_id)?;
+    let addr = to_json_vec(&sender_address)?;
     let mut position_indexer: Bucket<UnbondWaitEntity> =
         Bucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &addr]);
     position_indexer.update(&batch, |asked_already| -> StdResult<UnbondWaitEntity> {
@@ -92,11 +92,11 @@ pub fn remove_unbond_wait_list(
     batch_id: Vec<u64>,
     sender_address: String,
 ) -> StdResult<()> {
-    let addr = to_vec(&sender_address)?;
+    let addr = to_json_vec(&sender_address)?;
     let mut position_indexer: Bucket<UnbondWaitEntity> =
         Bucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &addr]);
     for b in batch_id {
-        let batch = to_vec(&b)?;
+        let batch = to_json_vec(&b)?;
         position_indexer.remove(&batch);
     }
     Ok(())
@@ -107,22 +107,22 @@ pub fn read_unbond_wait_list(
     batch_id: u64,
     sender_addr: String,
 ) -> StdResult<UnbondWaitEntity> {
-    let vec = to_vec(&sender_addr)?;
+    let vec = to_json_vec(&sender_addr)?;
     let res: ReadonlyBucket<UnbondWaitEntity> =
         ReadonlyBucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &vec]);
-    let batch = to_vec(&batch_id)?;
+    let batch = to_json_vec(&batch_id)?;
     let wl = res.load(&batch)?;
     Ok(wl)
 }
 
 pub fn get_unbond_requests(storage: &dyn Storage, sender_addr: String) -> StdResult<UnbondRequest> {
-    let vec = to_vec(&sender_addr)?;
+    let vec = to_json_vec(&sender_addr)?;
     let mut requests: UnbondRequest = vec![];
     let res: ReadonlyBucket<UnbondWaitEntity> =
         ReadonlyBucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &vec]);
     for item in res.range(None, None, Order::Ascending) {
         let (k, value) = item?;
-        let user_batch: u64 = from_slice(&k)?;
+        let user_batch: u64 =from_json(&k)?;
         requests.push((user_batch, value.bsei_amount, value.stsei_amount))
     }
     Ok(requests)
@@ -136,14 +136,14 @@ pub fn get_finished_amount(
     storage: &dyn Storage,
     sender_addr: String,
 ) -> StdResult<(Uint128, Vec<u64>)> {
-    let vec = to_vec(&sender_addr)?;
+    let vec = to_json_vec(&sender_addr)?;
     let mut withdrawable_amount: Uint128 = Uint128::zero();
     let mut deprecated_batches: Vec<u64> = vec![];
     let res: ReadonlyBucket<UnbondWaitEntity> =
         ReadonlyBucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &vec]);
     for item in res.range(None, None, Order::Ascending) {
         let (k, v) = item?;
-        let user_batch: u64 = from_slice(&k)?;
+        let user_batch: u64 =from_json(&k)?;
         let history = read_unbond_history(storage, user_batch);
         if let Ok(h) = history {
             if h.released {
@@ -162,13 +162,13 @@ pub fn query_get_finished_amount(
     sender_addr: String,
     block_time: u64,
 ) -> StdResult<Uint128> {
-    let vec = to_vec(&sender_addr)?;
+    let vec = to_json_vec(&sender_addr)?;
     let mut withdrawable_amount: Uint128 = Uint128::zero();
     let res: ReadonlyBucket<UnbondWaitEntity> =
         ReadonlyBucket::multilevel(storage, &[NEW_PREFIX_WAIT_MAP, &vec]);
     for item in res.range(None, None, Order::Ascending) {
         let (k, v) = item?;
-        let user_batch: u64 = from_slice(&k)?;
+        let user_batch: u64 =from_json(&k)?;
         let history = read_unbond_history(storage, user_batch);
         if let Ok(h) = history {
             if h.time < block_time {
@@ -188,7 +188,7 @@ pub fn store_unbond_history(
     history: UnbondHistory,
 ) -> StdResult<()> {
     let vec = batch_id.to_be_bytes().to_vec();
-    let value: Vec<u8> = to_vec(&history)?;
+    let value: Vec<u8> = to_json_vec(&history)?;
     PrefixedStorage::new(storage, UNBOND_HISTORY_MAP).set(&vec, &value);
     Ok(())
 }
@@ -198,7 +198,7 @@ pub fn read_unbond_history(storage: &dyn Storage, epoc_id: u64) -> StdResult<Unb
     let vec = epoc_id.to_be_bytes().to_vec();
     let res = ReadonlyPrefixedStorage::new(storage, UNBOND_HISTORY_MAP).get(&vec);
     match res {
-        Some(data) => from_slice(&data),
+        Some(data) =>from_json(&data),
         None => Err(StdError::generic_err(
             "Burn requests not found for the specified time period",
         )),
@@ -224,7 +224,7 @@ pub fn all_unbond_history(
             .range(vec.as_deref(), None, Order::Ascending)
             .take(lim)
             .map(|item| {
-                let history: StdResult<UnbondHistory> = from_slice(&item.1);
+                let history: StdResult<UnbondHistory> =from_json(&item.1);
                 history
             })
             .collect();
@@ -245,7 +245,7 @@ pub fn read_validators(storage: &dyn Storage) -> StdResult<Vec<String>> {
         .range(None, None, Order::Ascending)
         .map(|item| {
             let (key, _) = item;
-            let sender: StdResult<String> = from_slice(&key);
+            let sender: StdResult<String> =from_json(&key);
             sender
         })
         .collect();
@@ -346,7 +346,7 @@ pub fn migrate_unbond_history(storage: &mut dyn Storage) -> StdResult<()> {
         ReadonlyPrefixedStorage::new(storage, UNBOND_HISTORY_MAP)
             .range(None, None, Order::Ascending)
             .map(|item| {
-                let old_history: OldUnbondHistory = match from_slice(&item.1) {
+                let old_history: OldUnbondHistory = match from_json(&item.1) {
                     Ok(h) => h,
                     Err(e) => return Err(e),
                 };

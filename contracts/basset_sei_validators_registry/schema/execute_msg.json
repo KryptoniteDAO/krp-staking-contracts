@@ -59,14 +59,60 @@
                 "string",
                 "null"
               ]
-            },
-            "owner": {
-              "type": [
-                "string",
-                "null"
-              ]
             }
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "redelegations"
+      ],
+      "properties": {
+        "redelegations": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "set_owner"
+      ],
+      "properties": {
+        "set_owner": {
+          "type": "object",
+          "required": [
+            "new_owner_addr"
+          ],
+          "properties": {
+            "new_owner_addr": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "accept_ownership"
+      ],
+      "properties": {
+        "accept_ownership": {
+          "type": "object"
         }
       },
       "additionalProperties": false

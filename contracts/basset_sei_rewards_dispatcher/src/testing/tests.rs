@@ -354,7 +354,7 @@ fn test_update_config() {
     //check call from invalid owner
     let invalid_owner = String::from("invalid_owner");
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: Some(String::from("some_addr")),
+        // owner: Some(String::from("some_addr")),
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
@@ -369,7 +369,7 @@ fn test_update_config() {
     // change owner
     let new_owner = String::from("new_owner");
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: Some(new_owner.clone()),
+        // owner: Some(new_owner.clone()),
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
@@ -387,7 +387,7 @@ fn test_update_config() {
 
     // change hub_contract
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: Some(String::from("some_address")),
         bsei_reward_contract: None,
         stsei_reward_denom: None,
@@ -409,7 +409,7 @@ fn test_update_config() {
 
     // change bsei_reward_contract
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: None,
         bsei_reward_contract: Some(String::from("some_address")),
         stsei_reward_denom: None,
@@ -431,7 +431,7 @@ fn test_update_config() {
 
     // change stsei_reward_denom
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: Some(String::from("new_denom")),
@@ -454,7 +454,7 @@ fn test_update_config() {
 
     // change bsei_reward_denom
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
@@ -477,7 +477,7 @@ fn test_update_config() {
 
     // change krp_keeper_address
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,
@@ -499,7 +499,7 @@ fn test_update_config() {
 
     // change krp_keeper_rate
     let update_config_msg = ExecuteMsg::UpdateConfig {
-        owner: None,
+        // owner: None,
         hub_contract: None,
         bsei_reward_contract: None,
         stsei_reward_denom: None,

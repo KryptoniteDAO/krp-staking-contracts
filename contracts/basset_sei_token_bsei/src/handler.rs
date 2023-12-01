@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, SubMsg, Uint128, WasmMsg,
 };
 
 use crate::querier::query_reward_contract;
@@ -46,7 +46,7 @@ pub fn execute_transfer(
     let messages = vec![
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&DecreaseBalance {
+            msg: to_json_binary(&DecreaseBalance {
                 address: sender.to_string(),
                 amount,
             })?,
@@ -54,7 +54,7 @@ pub fn execute_transfer(
         })),
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&IncreaseBalance {
+            msg: to_json_binary(&IncreaseBalance {
                 address: rcpt_addr.to_string(),
                 amount,
             })?,
@@ -82,7 +82,7 @@ pub fn execute_burn(
     let res: Response = cw20_burn(deps, env, info, amount)?;
     let messages = vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: reward_contract.to_string(),
-        msg: to_binary(&DecreaseBalance {
+        msg: to_json_binary(&DecreaseBalance {
             address: sender.to_string(),
             amount,
         })?,
@@ -107,7 +107,7 @@ pub fn execute_mint(
     Ok(Response::new()
         .add_submessages(vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&IncreaseBalance {
+            msg: to_json_binary(&IncreaseBalance {
                 address: recipient,
                 amount,
             })?,
@@ -132,7 +132,7 @@ pub fn execute_send(
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: reward_contract.to_string(),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: sender.to_string(),
                     amount,
                 })?,
@@ -140,7 +140,7 @@ pub fn execute_send(
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: reward_contract.to_string(),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: contract,
                     amount,
                 })?,
@@ -172,7 +172,7 @@ pub fn execute_transfer_from(
     let messages = vec![
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&DecreaseBalance {
+            msg: to_json_binary(&DecreaseBalance {
                 address: valid_owner.to_string(),
                 amount,
             })?,
@@ -180,7 +180,7 @@ pub fn execute_transfer_from(
         })),
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&IncreaseBalance {
+            msg: to_json_binary(&IncreaseBalance {
                 address: recipient,
                 amount,
             })?,
@@ -208,7 +208,7 @@ pub fn execute_burn_from(
     let messages = vec![
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: reward_contract.to_string(),
-            msg: to_binary(&DecreaseBalance {
+            msg: to_json_binary(&DecreaseBalance {
                 address: valid_owner.to_string(),
                 amount,
             })?,
@@ -216,7 +216,7 @@ pub fn execute_burn_from(
         })),
         SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: hub_contract.to_string(),
-            msg: to_binary(&CheckSlashing {})?,
+            msg: to_json_binary(&CheckSlashing {})?,
             funds: vec![],
         })),
     ];
@@ -243,7 +243,7 @@ pub fn execute_send_from(
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: reward_contract.to_string(),
-                msg: to_binary(&DecreaseBalance {
+                msg: to_json_binary(&DecreaseBalance {
                     address: valid_owner.to_string(),
                     amount,
                 })?,
@@ -251,7 +251,7 @@ pub fn execute_send_from(
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: reward_contract.to_string(),
-                msg: to_binary(&IncreaseBalance {
+                msg: to_json_binary(&IncreaseBalance {
                     address: contract,
                     amount,
                 })?,
