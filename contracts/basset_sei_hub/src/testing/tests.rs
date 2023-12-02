@@ -49,7 +49,7 @@ use serde::{Deserialize, Serialize};
 use basset::airdrop::ExecuteMsg::{FabricateANCClaim, FabricateMIRClaim};
 use basset::airdrop::PairHandleMsg;
 use basset::hub::Cw20HookMsg::Unbond;
-use basset::hub::ExecuteMsg::{CheckSlashing, Receive, UpdateConfig, UpdateParams};
+use basset::hub::ExecuteMsg::{CheckSlashing, Receive, SetOwner, UpdateConfig, UpdateParams};
 use basset::hub::QueryMsg::{
     AllHistory, Config, CurrentBatch, Parameters as Params, State, UnbondRequests,
     WithdrawableUnbonded,
@@ -62,10 +62,11 @@ use basset::hub::{
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::{DispatchRewards, SwapToRewardDenom};
 use basset_sei_validators_registry::msg::QueryMsg as QueryValidators;
 use basset_sei_validators_registry::registry::ValidatorResponse as RegistryValidator;
+use crate::config::accept_ownership;
 
 use crate::contract::{execute, instantiate, query};
 use crate::math::decimal_division;
-use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE};
+use crate::state::{read_unbond_wait_list, CONFIG, OLD_PREFIX_WAIT_MAP, PARAMETERS, STATE, read_new_owner};
 use crate::unbond::{execute_unbond, execute_unbond_stsei};
 
 use super::mock_querier::{mock_dependencies as dependencies, WasmMockQuerier};
@@ -737,7 +738,7 @@ pub fn proper_update_global_index() {
 
     initialize(
         deps.borrow_mut(),
-        owner,
+        owner.clone(),
         reward_contract.clone(),
         token_contract,
         stsei_token_contract.clone(),
@@ -754,7 +755,14 @@ pub fn proper_update_global_index() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&addr1, &[]);
+    // let info = mock_info(&addr1, &[]);
+    // let res = execute(deps.as_mut(), mock_env(), info, reward_msg);
+    // assert_eq!(res.unwrap_err(), StdError::generic_err("unauthorized"));
+
+    // let info = mock_info(&addr1, &[]);
+    // let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
+    // assert_eq!(res.messages.len(), 2);
+    let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(res.messages.len(), 2);
 
@@ -788,7 +796,7 @@ pub fn proper_update_global_index() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&addr1, &[]);
+    let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(3, res.messages.len());
 
@@ -862,7 +870,7 @@ pub fn proper_update_global_index_two_validators() {
 
     initialize(
         deps.borrow_mut(),
-        owner,
+        owner.clone(),
         reward_contract,
         token_contract,
         stsei_token_contract.clone(),
@@ -905,7 +913,7 @@ pub fn proper_update_global_index_two_validators() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&addr1, &[]);
+    let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(4, res.messages.len());
 
@@ -945,7 +953,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
 
     initialize(
         deps.borrow_mut(),
-        owner,
+        owner.clone(),
         reward_contract,
         token_contract,
         stsei_token_contract.clone(),
@@ -983,7 +991,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&addr1, &[]);
+    let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(3, res.messages.len());
 
@@ -4186,21 +4194,51 @@ pub fn proper_update_config() {
     assert_eq!(res.unwrap_err(), StdError::generic_err("unauthorized"));
 
     // change the owner
-    let update_config = UpdateConfig {
-        rewards_dispatcher_contract: None,
-        bsei_token_contract: None,
-        airdrop_registry_contract: None,
-        validators_registry_contract: None,
-        stsei_token_contract: None,
-        rewards_contract: None,
+    // let update_config = UpdateConfig {
+    //     rewards_dispatcher_contract: None,
+    //     bsei_token_contract: None,
+    //     airdrop_registry_contract: None,
+    //     validators_registry_contract: None,
+    //     stsei_token_contract: None,
+    //     rewards_contract: None,
+    // };
+    // let info = mock_info(&owner, &[]);
+    // let res = execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
+    // assert_eq!(res.messages.len(), 0);
+    //
+    // let config = CONFIG.load(&deps.storage).unwrap();
+    // let new_owner_raw = deps.api.addr_canonicalize(&new_owner).unwrap();
+    // assert_eq!(new_owner_raw, config.creator);
+    //
+    // let new_owner_raw = deps.api.addr_canonicalize(&new_owner).unwrap();
+    // assert_eq!(new_owner_raw, config.creator);
+
+    // change the owner
+    let update_config = SetOwner {
+        new_owner_addr: new_owner.clone(),
     };
     let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
     assert_eq!(res.messages.len(), 0);
-
+    let new_owner_addr = read_new_owner(deps.as_ref().storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize(&new_owner).unwrap(),
+        new_owner_addr.new_owner_addr
+    );
     let config = CONFIG.load(&deps.storage).unwrap();
-    let new_owner_raw = deps.api.addr_canonicalize(&new_owner).unwrap();
-    assert_eq!(new_owner_raw, config.creator);
+    assert_eq!(
+        deps.api.addr_canonicalize(&owner).unwrap(),
+        config.creator
+    );
+    // accept ownership
+    let info = mock_info(&new_owner, &[]);
+    let res = accept_ownership(deps.as_mut(), info.clone());
+    assert!(res.is_ok());
+    let config = CONFIG.load(&deps.storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize(&new_owner).unwrap(),
+        config.creator
+    );
 
     // new owner can send the owner related messages
     let update_prams = UpdateParams {
@@ -4502,7 +4540,7 @@ fn proper_update_global_index_with_airdrop() {
 
     initialize(
         deps.borrow_mut(),
-        owner,
+        owner.clone(),
         reward_contract,
         token_contract,
         stsei_token_contract.clone(),
@@ -4545,7 +4583,7 @@ fn proper_update_global_index_with_airdrop() {
         airdrop_hooks: Some(vec![binary_msg.clone(), binary_msg2.clone()]),
     };
 
-    let info = mock_info(&addr1, &[]);
+    let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(5, res.messages.len());
 
@@ -5015,22 +5053,25 @@ fn proper_redelegate_proxy() {
     }
 
     // check that creator can send such messages
+    // let info = mock_info(&owner, &[]);
+    // let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap();
+    // let redelegate = &res.messages[0];
+    // match redelegate.msg.clone() {
+    //     CosmosMsg::Staking(StakingMsg::Redelegate {
+    //         src_validator,
+    //         dst_validator,
+    //         amount,
+    //     }) => {
+    //         assert_eq!(src_validator, String::from("src_validator"));
+    //         assert_eq!(dst_validator, String::from("dst_validator"));
+    //         assert_eq!(amount, Coin::new(100, "usei"));
+    //     }
+    //     _ => panic!("Unexpected message: {:?}", redelegate),
+    // }
+    // check that creator can not send such messages
     let info = mock_info(&owner, &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap();
-
-    let redelegate = &res.messages[0];
-    match redelegate.msg.clone() {
-        CosmosMsg::Staking(StakingMsg::Redelegate {
-            src_validator,
-            dst_validator,
-            amount,
-        }) => {
-            assert_eq!(src_validator, String::from("src_validator"));
-            assert_eq!(dst_validator, String::from("dst_validator"));
-            assert_eq!(amount, Coin::new(100, "usei"));
-        }
-        _ => panic!("Unexpected message: {:?}", redelegate),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap_err();
+    assert_eq!(res, StdError::generic_err("unauthorized"));
 }
 
 ///
