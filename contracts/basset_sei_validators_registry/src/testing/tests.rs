@@ -11,9 +11,9 @@
 // limitations under the License.
 
 use crate::common::{calculate_delegations, calculate_undelegations};
-use crate::contract::{execute, instantiate};
+use crate::contract::{accept_ownership, execute, instantiate};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::registry::{Validator, ValidatorResponse, CONFIG, REGISTRY};
+use crate::registry::{Validator, ValidatorResponse, CONFIG, REGISTRY, read_new_owner};
 use crate::testing::mock_querier::{mock_dependencies, WasmMockQuerier};
 use basset::hub::ExecuteMsg::{RedelegateProxy, UpdateGlobalIndex};
 use cosmwasm_std::testing::{mock_env, mock_info};
@@ -21,6 +21,7 @@ use cosmwasm_std::{
     coin, coins, to_json_binary, Addr, Api, Coin, CosmosMsg, FullDelegation, StdError, Uint128,
     Validator as CosmosValidator, WasmMsg,
 };
+use crate::msg::ExecuteMsg::{RemoveValidator, SetOwner};
 
 #[test]
 fn proper_instantiate() {
@@ -30,7 +31,7 @@ fn proper_instantiate() {
 
     let msg = InstantiateMsg {
         registry: vec![Validator {
-            address: Default::default(),
+            address: String::from("validator"),
         }],
         hub_contract: hub_address.clone(),
     };
@@ -58,7 +59,7 @@ fn add_validator() {
     let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
     let validator = Validator {
-        address: Default::default(),
+        address: String::from("validator"),
     };
 
     let msg = ExecuteMsg::AddValidator {
@@ -136,11 +137,28 @@ fn update_config() {
         config.hub_contract
     );
 
+    // change the owner
     let new_owner = String::from("new_owner");
-    let msg = ExecuteMsg::UpdateConfig {
-        hub_contract: None,
+    let update_config = SetOwner {
+        new_owner_addr: new_owner.clone(),
     };
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
+    let info = mock_info("creator", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
+    assert_eq!(res.messages.len(), 0);
+    let new_owner_addr = read_new_owner(deps.as_ref().storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize(&new_owner).unwrap(),
+        new_owner_addr.new_owner_addr
+    );
+    let config = CONFIG.load(&deps.storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize("creator").unwrap(),
+        config.owner
+    );
+
+    // accept ownership
+    let info = mock_info(&new_owner, &[]);
+    let res = accept_ownership(deps.as_mut(), info.clone());
     assert!(res.is_ok());
     let config = CONFIG.load(&deps.storage).unwrap();
     assert_eq!(
