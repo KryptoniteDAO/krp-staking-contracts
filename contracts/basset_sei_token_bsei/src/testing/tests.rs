@@ -15,10 +15,7 @@
 use basset::hub::ExecuteMsg::CheckSlashing;
 use basset::reward::ExecuteMsg::{DecreaseBalance, IncreaseBalance};
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{
-    coins, to_json_binary, Api, CosmosMsg, DepsMut, OwnedDeps, Querier, Storage, SubMsg, Uint128,
-    WasmMsg,
-};
+use cosmwasm_std::{coins, to_json_binary, Api, CosmosMsg, DepsMut, OwnedDeps, Querier, Storage, SubMsg, Uint128, WasmMsg, StdError};
 use cw20::{Cw20ReceiveMsg, MinterResponse, TokenInfoResponse};
 use cw20_legacy::contract::{query_minter, query_token_info};
 use cw20_legacy::msg::ExecuteMsg;
@@ -30,6 +27,8 @@ use crate::testing::mock_querier::{
     mock_dependencies, MOCK_HUB_CONTRACT_ADDR, MOCK_REWARDS_CONTRACT_ADDR,
 };
 use std::borrow::BorrowMut;
+use std::fmt::Error;
+use cw20_legacy::ContractError;
 
 // this will set up the init for other tests
 fn do_init_with_minter<S: Storage, A: Api, Q: Querier>(
@@ -273,8 +272,17 @@ fn burn() {
         None,
     );
     do_mint(deps.as_mut(), addr.clone(), amount1);
-
     let info = mock_info(addr.as_str(), &[]);
+    let msg = ExecuteMsg::Burn {
+        amount: Uint128::new(1u128),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg);
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(),  ContractError::Unauthorized{});
+
+    do_mint(deps.as_mut(), MOCK_HUB_CONTRACT_ADDR.to_string(), amount1);
+
+    let info = mock_info(MOCK_HUB_CONTRACT_ADDR.clone(), &[]);
     let msg = ExecuteMsg::Burn {
         amount: Uint128::new(1u128),
     };

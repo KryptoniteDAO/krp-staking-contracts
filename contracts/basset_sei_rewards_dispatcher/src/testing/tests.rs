@@ -34,9 +34,10 @@
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{coins, Api, Coin, Decimal, StdError, Uint128};
 
-use crate::contract::{execute, get_swap_info, instantiate};
+use crate::contract::{accept_ownership, execute, get_swap_info, instantiate};
 use crate::msg::{ExecuteMsg, InstantiateMsg};
-use crate::state::CONFIG;
+use crate::msg::ExecuteMsg::SetOwner;
+use crate::state::{CONFIG, read_new_owner};
 use crate::testing::mock_querier::{
     mock_dependencies, BTOKEN_REWARD_DENOM, MOCK_BSEI_REWARD_CONTRACT_ADDR, MOCK_HUB_CONTRACT_ADDR,
     MOCK_KRP_KEEPER_CONTRACT_ADDR, MOCK_ORACLE_CONTRACT_ADDR, MOCK_SWAP_CONTRACT_ADDR,
@@ -203,7 +204,7 @@ fn test_dispatch_rewards() {
     let msg = ExecuteMsg::DispatchRewards {};
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(3, res.messages.len());
+    assert_eq!(5, res.messages.len());
 
     for attr in res.attributes {
         if attr.key == "stsei_rewards" {
@@ -250,7 +251,7 @@ fn test_dispatch_rewards_zero_krp_keeper_rate() {
     let msg = ExecuteMsg::DispatchRewards {};
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(3, res.messages.len());
+    assert_eq!(5, res.messages.len());
 
     for attr in res.attributes {
         if attr.key == "stsei_rewards" {
@@ -366,24 +367,53 @@ fn test_update_config() {
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
     assert_eq!(res.unwrap_err(), StdError::generic_err("unauthorized"));
 
-    // change owner
+    // // change owner
+    // let new_owner = String::from("new_owner");
+    // let update_config_msg = ExecuteMsg::UpdateConfig {
+    //     // owner: Some(new_owner.clone()),
+    //     hub_contract: None,
+    //     bsei_reward_contract: None,
+    //     stsei_reward_denom: None,
+    //     bsei_reward_denom: None,
+    //     krp_keeper_address: None,
+    //     krp_keeper_rate: None,
+    // };
+    // let info = mock_info(&owner, &[]);
+    // let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
+    // assert!(res.is_ok());
+    //
+    // let config = CONFIG.load(&deps.storage).unwrap();
+    // let new_owner_raw = deps.api.addr_canonicalize(&new_owner).unwrap();
+    // assert_eq!(new_owner_raw, config.owner);
+
+    // change the owner
     let new_owner = String::from("new_owner");
-    let update_config_msg = ExecuteMsg::UpdateConfig {
-        // owner: Some(new_owner.clone()),
-        hub_contract: None,
-        bsei_reward_contract: None,
-        stsei_reward_denom: None,
-        bsei_reward_denom: None,
-        krp_keeper_address: None,
-        krp_keeper_rate: None,
+    let update_config = SetOwner {
+        new_owner_addr: new_owner.clone(),
     };
     let info = mock_info(&owner, &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
-    assert!(res.is_ok());
-
+    let res = execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
+    assert_eq!(res.messages.len(), 0);
+    let new_owner_addr = read_new_owner(deps.as_ref().storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize(&new_owner).unwrap(),
+        new_owner_addr.new_owner_addr
+    );
     let config = CONFIG.load(&deps.storage).unwrap();
-    let new_owner_raw = deps.api.addr_canonicalize(&new_owner).unwrap();
-    assert_eq!(new_owner_raw, config.owner);
+    assert_eq!(
+        deps.api.addr_canonicalize(&owner).unwrap(),
+        config.owner
+    );
+
+    // accept ownership
+    let info = mock_info(&new_owner, &[]);
+    let res = accept_ownership(deps.as_mut(), info.clone());
+    assert!(res.is_ok());
+    let config = CONFIG.load(&deps.storage).unwrap();
+    assert_eq!(
+        deps.api.addr_canonicalize(&new_owner).unwrap(),
+        config.owner
+    );
 
     // change hub_contract
     let update_config_msg = ExecuteMsg::UpdateConfig {
@@ -464,16 +494,20 @@ fn test_update_config() {
     };
     let info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config_msg);
-    assert!(res.is_err());
-    assert_eq!(
-        Some(StdError::generic_err(
-            "updating bSei reward denom is forbidden"
-        )),
-        res.err()
-    );
+    assert!(res.is_ok());
+    // assert!(res.is_err());
+    // assert_eq!(
+    //     Some(StdError::generic_err(
+    //         "updating bSei reward denom is forbidden"
+    //     )),
+    //     res.err()
+    // );
+    //
+    // let config = CONFIG.load(&deps.storage).unwrap();
+    // assert_eq!(String::from("kusd"), config.bsei_reward_denom);
 
     let config = CONFIG.load(&deps.storage).unwrap();
-    assert_eq!(String::from("kusd"), config.bsei_reward_denom);
+    assert_eq!(String::from("new_denom"), config.bsei_reward_denom);
 
     // change krp_keeper_address
     let update_config_msg = ExecuteMsg::UpdateConfig {
