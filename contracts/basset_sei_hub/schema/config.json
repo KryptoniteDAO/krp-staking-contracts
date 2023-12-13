@@ -3,7 +3,8 @@
   "title": "Config",
   "type": "object",
   "required": [
-    "creator"
+    "creator",
+    "update_reward_index_addr"
   ],
   "properties": {
     "airdrop_registry_contract": {
@@ -58,6 +59,9 @@
           "type": "null"
         }
       ]
+    },
+    "update_reward_index_addr": {
+      "$ref": "#/definitions/CanonicalAddr"
     },
     "validators_registry_contract": {
       "anyOf": [

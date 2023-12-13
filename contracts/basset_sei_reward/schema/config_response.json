@@ -5,7 +5,8 @@
   "required": [
     "hub_contract",
     "owner",
-    "reward_denom"
+    "reward_denom",
+    "swap_contract"
   ],
   "properties": {
     "hub_contract": {
@@ -15,6 +16,9 @@
       "type": "string"
     },
     "reward_denom": {
+      "type": "string"
+    },
+    "swap_contract": {
       "type": "string"
     }
   }

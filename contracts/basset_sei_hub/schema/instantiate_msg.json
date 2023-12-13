@@ -8,7 +8,8 @@
     "peg_recovery_fee",
     "reward_denom",
     "unbonding_period",
-    "underlying_coin_denom"
+    "underlying_coin_denom",
+    "update_reward_index_addr"
   ],
   "properties": {
     "epoch_period": {
@@ -31,6 +32,9 @@
       "minimum": 0.0
     },
     "underlying_coin_denom": {
+      "type": "string"
+    },
+    "update_reward_index_addr": {
       "type": "string"
     }
   },

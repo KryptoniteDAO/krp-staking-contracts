@@ -93,6 +93,18 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "new_owner"
+      ],
+      "properties": {
+        "new_owner": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

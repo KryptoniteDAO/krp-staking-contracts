@@ -3,7 +3,8 @@
   "title": "ConfigResponse",
   "type": "object",
   "required": [
-    "owner"
+    "owner",
+    "update_reward_index_addr"
   ],
   "properties": {
     "airdrop_registry_contract": {
@@ -38,6 +39,9 @@
         "string",
         "null"
       ]
+    },
+    "update_reward_index_addr": {
+      "type": "string"
     },
     "validators_registry_contract": {
       "type": [

@@ -42,6 +42,12 @@
                 "null"
               ]
             },
+            "update_reward_index_addr": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "validators_registry_contract": {
               "type": [
                 "string",
@@ -95,6 +101,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "reward_denom": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "unbonding_period": {
