@@ -75,6 +75,7 @@ impl WasmMockQuerier {
                 if *contract_addr == MOCK_HUB_CONTRACT_ADDR {
                     let config = ConfigResponse {
                         owner: String::from("owner1"),
+                        update_reward_index_addr: String::from("update_reward_index_addr"),
                         reward_dispatcher_contract: Some(String::from(
                             MOCK_REWARD_DISPATCHER_CONTRACT_ADDR,
                         )),

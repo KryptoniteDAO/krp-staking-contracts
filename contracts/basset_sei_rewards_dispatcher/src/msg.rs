@@ -47,7 +47,6 @@ pub enum ExecuteMsg {
     SetOwner {
         new_owner_addr: String,
     },
-
     AcceptOwnership {
     },
     DispatchRewards {},
@@ -70,6 +69,7 @@ pub enum QueryMsg {
     // GetBufferedRewards {},
     // Config returns config
     Config {},
+    NewOwner {},
 }
 
 // We define a custom struct for each query response

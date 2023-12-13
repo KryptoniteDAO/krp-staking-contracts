@@ -23,6 +23,9 @@ pub enum ExecuteMsg {
         swap_contract: Option<String>,
     },
 
+    /// Swap all of the balances to uusd.
+    SwapToRewardDenom {},
+    
     SetOwner {
         new_owner_addr: String,
     },
@@ -74,6 +77,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    NewOwner {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,6 +85,7 @@ pub struct ConfigResponse {
     pub hub_contract: String,
     pub reward_denom: String,
     pub owner: String,
+    pub swap_contract: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -107,6 +112,12 @@ pub struct HolderResponse {
 pub struct HoldersResponse {
     pub holders: Vec<HolderResponse>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerResponse {
+    pub new_owner: String,
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {}

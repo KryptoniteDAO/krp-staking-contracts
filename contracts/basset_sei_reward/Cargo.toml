@@ -1,5 +1,5 @@
 [package]
-name = "basset_sei_reward"
+name = "basset-sei-reward"
 version = "1.0.0"
 authors = ["<smith@kryptonite.finance>"]
 edition = "2018"

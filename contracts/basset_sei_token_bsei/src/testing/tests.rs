@@ -312,15 +312,22 @@ fn burn() {
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(
         res.messages,
-        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
-            msg: to_json_binary(&DecreaseBalance {
-                address: String::from(MOCK_HUB_CONTRACT_ADDR),
-                amount: Uint128::new(1u128),
-            })
-            .unwrap(),
-            funds: vec![],
-        })),]
+        vec![
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: String::from(MOCK_REWARDS_CONTRACT_ADDR),
+                msg: to_json_binary(&DecreaseBalance {
+                    address: MOCK_HUB_CONTRACT_ADDR.to_string(),
+                    amount: Uint128::new(1u128),
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            // SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            //     contract_addr: String::from(MOCK_HUB_CONTRACT_ADDR),
+            //     msg: to_json_binary(&CheckSlashing {}).unwrap(),
+            //     funds: vec![],
+            // })),
+        ]
     );
 }
 

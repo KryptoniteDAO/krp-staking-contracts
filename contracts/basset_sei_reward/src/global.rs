@@ -18,8 +18,88 @@ use crate::state::{read_config, read_state, store_state, State};
 use crate::math::decimal_summation_in_256;
 
 use crate::querier::query_rewards_dispatcher_contract_address;
-use cosmwasm_std::{attr, Decimal, DepsMut, Env, MessageInfo, Response, StdError, };
+use cosmwasm_std::{attr, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError, SubMsg, to_json_binary, Uint128, WasmMsg};
+use basset::swap_ext::SwapExecteMsg;
 
+/// Swap all native tokens to reward_denom
+/// Only hub_contract is allowed to execute
+#[allow(clippy::if_same_then_else)]
+pub fn execute_swap(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    let config = read_config(deps.storage)?;
+    let hub_addr = deps.api.addr_humanize(&config.hub_contract)?;
+    let swap_addr = deps.api.addr_humanize(&config.swap_contract)?;
+    let owner_addr = deps
+        .api
+        .addr_humanize(&query_rewards_dispatcher_contract_address(
+            deps.as_ref(),
+            hub_addr,
+        )?)?;
+
+    if info.sender != owner_addr {
+        return Err(ContractError::Std(StdError::generic_err("unauthorized")));
+    }
+
+    // --------------------- add swap start --------------------------
+    let contr_addr = env.contract.address.clone();
+    let balances = deps.querier.query_all_balances(contr_addr.clone())?;
+
+    let swap_denoms = config.swap_denoms.clone();
+    let reward_denom = config.reward_denom.clone();
+
+    let mut messages: Vec<SubMsg> = Vec::new();
+
+    for coin in balances {
+        if !swap_denoms.contains(&coin.denom) {
+            continue;
+        }
+        if coin.amount > Uint128::zero() {
+            let swap_msg = SwapExecteMsg::SwapDenom {
+                from_coin: coin.clone(),
+                target_denom: reward_denom.clone(),
+                to_address: Option::from(contr_addr.clone().to_string()),
+            };
+            messages.push(SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: swap_addr.clone().to_string(),
+                msg: to_json_binary(&swap_msg)?,
+                funds: vec![coin.clone()],
+            })));
+        }
+    }
+    // --------------------- add swap end --------------------------
+
+    // let contr_addr = env.contract.address;
+    // let balance = deps.querier.query_all_balances(contr_addr)?;
+    // let mut messages: Vec<SubMsg<TerraMsgWrapper>> = Vec::new();
+
+    // let reward_denom = config.reward_denom;
+
+    // let mut is_listed = true;
+
+    // let denoms: Vec<String> = balance.iter().map(|item| item.denom.clone()).collect();
+
+    // if query_exchange_rates(&deps, reward_denom.clone(), denoms).is_err() {
+    //     is_listed = false;
+    // }
+
+    // for coin in balance {
+    //     if coin.denom == reward_denom.clone() {
+    //         continue;
+    //     }
+    //     if is_listed {
+    //         messages.push(SubMsg::new(create_swap_msg(coin, reward_denom.to_string())));
+    //     } else if query_exchange_rates(&deps, reward_denom.clone(), vec![coin.denom.clone()])
+    //         .is_ok()
+    //     {
+    //         messages.push(SubMsg::new(create_swap_msg(coin, reward_denom.to_string())));
+    //     }
+    // }
+
+    let res = Response::new()
+        .add_submessages(messages)
+        .add_attributes(vec![attr("action", "swap")]);
+
+    Ok(res)
+}
 
 /// Increase global_index according to claimed rewards amount
 /// Only hub_contract is allowed to execute

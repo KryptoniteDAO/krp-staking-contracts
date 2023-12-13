@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal};
+use cosmwasm_std::Decimal;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,4 +16,9 @@ pub struct ConfigResponse {
     pub swap_contract: String,
     pub swap_denoms: Vec<String>,
     pub oracle_contract: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerResponse {
+    pub new_owner: String,
 }

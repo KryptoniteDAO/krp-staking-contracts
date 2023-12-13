@@ -25,7 +25,7 @@ use basset::hub::ExecuteMsg::SwapHook;
 use basset::hub::{
     AllHistoryResponse, BondType, Config, ConfigResponse, CurrentBatch, CurrentBatchResponse,
     InstantiateMsg, MigrateMsg, Parameters, QueryMsg, State, StateResponse, UnbondHistoryResponse,
-    UnbondRequestsResponse, WithdrawableUnbondedResponse,
+    UnbondRequestsResponse, WithdrawableUnbondedResponse, NewOwnerResponse,
 };
 use basset::hub::{Cw20HookMsg, ExecuteMsg};
 use basset_sei_rewards_dispatcher::msg::ExecuteMsg::DispatchRewards;
@@ -38,7 +38,7 @@ use crate::config::{
 use crate::convert::{convert_bsei_stsei, convert_stsei_bsei};
 use crate::state::{
     all_unbond_history, get_unbond_requests, migrate_unbond_wait_lists, query_get_finished_amount,
-    store_new_owner, NewOwnerAddr, CONFIG, CURRENT_BATCH, PARAMETERS, STATE,
+    store_new_owner, NewOwnerAddr, CONFIG, CURRENT_BATCH, PARAMETERS, STATE, read_new_owner,
 };
 use crate::unbond::{execute_unbond, execute_unbond_stsei, execute_withdraw_unbonded};
 
@@ -55,6 +55,9 @@ pub fn instantiate(
     // store config
     let data = Config {
         creator: sender_raw.clone(),
+        update_reward_index_addr: deps
+            .api
+            .addr_canonicalize(msg.update_reward_index_addr.as_str())?,
         reward_dispatcher_contract: None,
         validators_registry_contract: None,
         bsei_token_contract: None,
@@ -132,6 +135,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         unbonding_period,
         peg_recovery_fee,
         er_threshold,
+        reward_denom,
         paused,
     } = msg
     {
@@ -143,6 +147,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             unbonding_period,
             peg_recovery_fee,
             er_threshold,
+            reward_denom,
             paused,
         );
     }
@@ -166,6 +171,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             unbonding_period,
             peg_recovery_fee,
             er_threshold,
+            reward_denom,
             paused,
         } => execute_update_params(
             deps,
@@ -175,6 +181,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             unbonding_period,
             peg_recovery_fee,
             er_threshold,
+            reward_denom,
             paused,
         ),
         ExecuteMsg::UpdateConfig {
@@ -184,6 +191,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             validators_registry_contract,
             stsei_token_contract,
             rewards_contract,
+            update_reward_index_addr,
         } => execute_update_config(
             deps,
             env,
@@ -194,6 +202,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             airdrop_registry_contract,
             validators_registry_contract,
             rewards_contract,
+            update_reward_index_addr,
         ),
         ExecuteMsg::SetOwner { new_owner_addr } => {
             let api = deps.api;
@@ -338,7 +347,17 @@ pub fn execute_update_global(
     let mut messages: Vec<CosmosMsg> = vec![];
     let config = CONFIG.load(deps.storage)?;
 
-    if info.sender != deps.api.addr_humanize(&config.creator)?.to_string() {
+    if info.sender
+        != deps
+            .api
+            .addr_humanize(&config.update_reward_index_addr)?
+            .to_string()
+        && info.sender
+            != deps
+                .api
+                .addr_humanize(&config.validators_registry_contract.unwrap())?
+                .to_string()
+    {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -596,7 +615,18 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::AllHistory { start_from, limit } => {
             to_json_binary(&query_unbond_requests_limitation(deps, start_from, limit)?)
         }
+        QueryMsg::NewOwner {} => to_json_binary(&query_new_owner(deps)?),
     }
+}
+
+fn query_new_owner(deps: Deps) -> StdResult<NewOwnerResponse> {
+    let new_owner = read_new_owner(deps.storage)?;
+    Ok(NewOwnerResponse {
+        new_owner: deps
+            .api
+            .addr_humanize(&new_owner.new_owner_addr)?
+            .to_string(),
+    })
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -644,6 +674,10 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 
     Ok(ConfigResponse {
         owner: deps.api.addr_humanize(&config.creator)?.to_string(),
+        update_reward_index_addr: deps
+            .api
+            .addr_humanize(&config.update_reward_index_addr)?
+            .to_string(),
         reward_dispatcher_contract: reward,
         validators_registry_contract: validators_contract,
         bsei_token_contract: bsei_token.clone(),

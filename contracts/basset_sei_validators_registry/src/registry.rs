@@ -59,3 +59,9 @@ pub fn store_new_owner(storage: &mut dyn Storage, data: &NewOwnerAddr) -> StdRes
 pub fn read_new_owner(storage: &dyn Storage) -> StdResult<NewOwnerAddr> {
     NEWOWNERADDR.load(storage)
 }
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerResponse {
+    pub new_owner: String,
+}

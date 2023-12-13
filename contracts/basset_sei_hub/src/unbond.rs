@@ -409,18 +409,6 @@ pub(crate) fn execute_unbond_stsei(
 ) -> StdResult<Response> {
     // Read params
 
-    // let mut res = Response::new()
-    //     .add_attribute("Let the", "hacking begin")
-    //     .add_message(BankMsg::Send {
-    //         to_address: String::from("recipient"),
-    //         amount: coins(128, "uint"),
-    //     })
-    //     .add_attribute("foo", "bar")
-    //     .set_data(b"the result data");
-    // let mut res = Response::new().add_attribute("action", "execute_unbond_stsei");
-    // deps.api.debug(&format!("process_bulk_order_placements: {:?}", res));
-    // return OK(res);
-
     let params = PARAMETERS.load(deps.storage)?;
     let epoch_period = params.epoch_period;
 
@@ -444,14 +432,6 @@ pub(crate) fn execute_unbond_stsei(
     let passed_time = current_time - state.last_unbonded_time;
 
     let mut messages: Vec<CosmosMsg> = vec![];
-
-    // let res = Response::new().add_attributes(vec![
-    //     attr("action", "execute_unbond_stsei"),
-    //     attr("from", sender),
-    //     attr("burnt_amount", amount),
-    //     attr("unbonded_amount", amount),
-    // ]);
-    // return Ok(res);
 
     // If the epoch period is passed, the undelegate message would be sent.
     if passed_time > epoch_period {

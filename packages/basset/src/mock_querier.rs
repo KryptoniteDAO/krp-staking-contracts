@@ -8,9 +8,10 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::to_length_prefixed;
 use schemars::JsonSchema;
-use sei_cosmwasm::SeiQueryWrapper;
+
 use serde::{Deserialize, Serialize};
 
+use crate::common::{QueryTaxWrapper, QueryTaxMsg, TaxRateResponse, TaxCapResponse};
 use crate::hub::Config;
 
 pub fn mock_dependencies(
@@ -51,14 +52,14 @@ pub(crate) fn caps_to_map(caps: &[(&String, &Uint128)]) -> HashMap<String, Uint1
 }
 
 pub struct WasmMockQuerier {
-    base: MockQuerier<SeiQueryWrapper>,
+    base: MockQuerier<QueryTaxWrapper>,
     tax_querier: TaxQuerier,
 }
 
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<SeiQueryWrapper> = match from_json(bin_request) {
+        let request: QueryRequest<QueryTaxWrapper> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
@@ -72,11 +73,28 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<SeiQueryWrapper>) -> QuerierResult {
+    pub fn handle_query(&self, request: &QueryRequest<QueryTaxWrapper>) -> QuerierResult {
         match &request {
-            // QueryRequest::Custom(SeiQueryWrapper { route, query_data }) => {
-            //     panic!("DO NOT ENTER HERE")
-            // }
+            QueryRequest::Custom(QueryTaxWrapper { query_data }) => {
+                match query_data {
+                    QueryTaxMsg::TaxRate {} => {
+                        let res = TaxRateResponse {
+                            rate: self.tax_querier.rate,
+                        };
+                        SystemResult::Ok(ContractResult::from(to_json_binary(&res)))
+                    }
+                    QueryTaxMsg::TaxCap { denom } => {
+                        let cap = self
+                            .tax_querier
+                            .caps
+                            .get(denom)
+                            .copied()
+                            .unwrap_or_default();
+                        let res = TaxCapResponse { cap };
+                        SystemResult::Ok(ContractResult::from(to_json_binary(&res)))
+                    }
+                }
+            } 
             QueryRequest::Wasm(WasmQuery::Raw {
                 contract_addr: _,
                 key,
@@ -87,6 +105,7 @@ impl WasmMockQuerier {
                 if key.as_slice().to_vec() == prefix_config {
                     let config = Config {
                         creator: api.addr_canonicalize(&String::from("owner1")).unwrap(),
+                        update_reward_index_addr: api.addr_canonicalize(&String::from("update_reward_index_addr")).unwrap(),
                         reward_dispatcher_contract: Some(
                             api.addr_canonicalize(&String::from("reward_dispatcher"))
                                 .unwrap(),
@@ -155,7 +174,7 @@ pub struct TokenQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new(base: MockQuerier<SeiQueryWrapper>) -> Self {
+    pub fn new(base: MockQuerier<QueryTaxWrapper>) -> Self {
         WasmMockQuerier {
             base,
             tax_querier: TaxQuerier::default(),

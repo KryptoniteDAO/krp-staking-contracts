@@ -32,6 +32,7 @@ pub fn execute_update_params(
     unbonding_period: Option<u64>,
     peg_recovery_fee: Option<Decimal>,
     er_threshold: Option<Decimal>,
+    reward_denom: Option<String>,
     paused: Option<bool>,
 ) -> StdResult<Response> {
     // only owner can send this message.
@@ -66,7 +67,7 @@ pub fn execute_update_params(
         er_threshold: er_threshold
             .unwrap_or(params.er_threshold)
             .min(Decimal::one()),
-        reward_denom: params.reward_denom,
+        reward_denom: reward_denom.unwrap_or(params.reward_denom),
         paused,
     };
 
@@ -120,6 +121,7 @@ pub fn execute_update_config(
     airdrop_registry_contract: Option<String>,
     validators_registry_contract: Option<String>,
     rewards_contract: Option<String>,
+    update_reward_index_addr: Option<String>,
 ) -> StdResult<Response> {
     // only owner must be able to send this message.
     let conf = CONFIG.load(deps.storage)?;
@@ -190,14 +192,6 @@ pub fn execute_update_config(
         })?;
     }
 
-    // if let Some(stable_token) = stable_contract {
-    //     let stable_raw = deps.api.addr_canonicalize(&stable_token)?;
-    //     CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
-    //         last_config.stable_contract = Some(stable_raw);
-    //         Ok(last_config)
-    //     })?;
-    // }
-
     if let Some(rewards) = rewards_contract {
         let rewards_raw = deps.api.addr_canonicalize(&rewards)?;
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
@@ -205,6 +199,15 @@ pub fn execute_update_config(
             Ok(last_config)
         })?;
     }
+
+    if let Some(update_reward_index_addr) = update_reward_index_addr {
+        let update_reward_index_addr_raw = deps.api.addr_canonicalize(&update_reward_index_addr)?;
+        CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
+            last_config.update_reward_index_addr = update_reward_index_addr_raw;
+            Ok(last_config)
+        })?;
+    }
+
 
     let res = Response::new()
         .add_messages(messages)

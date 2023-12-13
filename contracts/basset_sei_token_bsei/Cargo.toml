@@ -1,5 +1,5 @@
 [package]
-name = "basset_sei_token_bsei"
+name = "basset-sei-token-bsei"
 version = "1.0.0"
 authors = ["<smith@kryptonite.finance>"]
 edition = "2018"
@@ -27,14 +27,14 @@ library = []
 cw2 = { version = "0.16.0" }
 cw20 = { version = "0.16.0" }
 cosmwasm-std = { version = "1.0.0" }
-cosmwasm-storage = { version = "1.0.0" }
+cosmwasm-storage = { version = "1.2.5" }
 cw-storage-plus = { version = "0.13.2" }
 schemars = "0.8.8"
 cw20-legacy = { path = "../../packages/cw20-legacy", version = "1.2.0" , features = ["library"]}
 serde = { version = "1.0.147", default-features = false, features = ["derive"] }
 snafu = { version = "0.7.3" }
 basset = { path = "../../packages/basset", default-features = false, version = "0.1.0"}
-basset_sei_rewards_dispatcher = {path = "../basset_sei_rewards_dispatcher", features = ["library"] }
+basset-sei-rewards-dispatcher = {path = "../basset_sei_rewards_dispatcher", features = ["library"] }
 
 [dev-dependencies]
 # we only need to enable this if we use integration tests

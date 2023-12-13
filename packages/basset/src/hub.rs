@@ -20,6 +20,7 @@ pub struct InstantiateMsg {
     pub peg_recovery_fee: Decimal,
     pub er_threshold: Decimal,
     pub reward_denom: String,
+    pub update_reward_index_addr: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Default)]
@@ -48,6 +49,7 @@ pub struct OldState {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub creator: CanonicalAddr,
+    pub update_reward_index_addr: CanonicalAddr,
     pub reward_dispatcher_contract: Option<CanonicalAddr>,
     pub validators_registry_contract: Option<CanonicalAddr>,
     pub bsei_token_contract: Option<CanonicalAddr>,
@@ -105,6 +107,7 @@ pub enum ExecuteMsg {
         stsei_token_contract: Option<String>,
         airdrop_registry_contract: Option<String>,
         rewards_contract: Option<String>,
+        update_reward_index_addr: Option<String>,
     },
 
     /// update the parameters that is needed for the contract
@@ -114,6 +117,7 @@ pub enum ExecuteMsg {
         peg_recovery_fee: Option<Decimal>,
         er_threshold: Option<Decimal>,
         paused: Option<bool>,
+        reward_denom: Option<String>,
     },
 
     SetOwner {
@@ -295,6 +299,7 @@ pub struct StateResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub owner: String,
+    pub update_reward_index_addr: String,
     pub reward_dispatcher_contract: Option<String>,
     pub validators_registry_contract: Option<String>,
     pub bsei_token_contract: Option<String>,
@@ -356,4 +361,11 @@ pub enum QueryMsg {
         start_from: Option<u64>,
         limit: Option<u32>,
     },
+    NewOwner {},
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct NewOwnerResponse {
+    pub new_owner: String,
 }

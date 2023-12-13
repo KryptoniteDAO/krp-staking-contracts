@@ -79,6 +79,7 @@ fn proper_init() {
             hub_contract: String::from(MOCK_HUB_CONTRACT_ADDR),
             reward_denom: DEFAULT_REWARD_DENOM.to_string(),
             owner: "addr0000".to_string(),
+            swap_contract: MOCK_SWAP_CONTRACT_ADDR.to_string(),
         }
     );
 

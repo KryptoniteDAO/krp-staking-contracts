@@ -16,8 +16,8 @@
 use cosmwasm_std::entry_point;
 
 use crate::error::ContractError;
-use crate::global::execute_update_global_index;
-use crate::state::{read_config, read_state, store_config, store_state, Config, State, NewOwnerAddr, store_new_owner};
+use crate::global::{execute_swap, execute_update_global_index};
+use crate::state::{read_config, read_state, store_config, store_state, Config, State, NewOwnerAddr, store_new_owner, read_new_owner};
 use crate::user::{
     execute_claim_rewards, execute_decrease_balance, execute_increase_balance,
     query_accrued_rewards, query_holder, query_holders,
@@ -28,7 +28,7 @@ use cosmwasm_std::{
 
 use crate::handler::{udpate_config, update_swap_denom, set_new_owner, accept_ownership};
 use basset::reward::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateResponse, NewOwnerResponse,
 };
 
 use basset::handle::optional_addr_validate;
@@ -96,6 +96,7 @@ pub fn execute(
             set_new_owner(deps, info, api.addr_validate(&new_owner_addr)?)
         }
         ExecuteMsg::AcceptOwnership {} => accept_ownership(deps, info),
+	ExecuteMsg::SwapToRewardDenom {} => execute_swap(deps, env, info),
         ExecuteMsg::UpdateGlobalIndex {} => execute_update_global_index(deps, env, info),
         ExecuteMsg::IncreaseBalance { address, amount } => {
             execute_increase_balance(deps, env, info, address, amount)
@@ -119,8 +120,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Holders { start_after, limit } => {
             to_json_binary(&query_holders(deps, start_after, limit)?)
         }
+        QueryMsg::NewOwner {} => to_json_binary(&query_new_owner(deps)?),
     }
 }
+
+fn query_new_owner(deps: Deps) -> StdResult<NewOwnerResponse> {
+    let new_owner = read_new_owner(deps.storage)?;
+    Ok(NewOwnerResponse {
+        new_owner: deps
+            .api
+            .addr_humanize(&new_owner.new_owner_addr)?
+            .to_string(),
+    })
+}
+
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config: Config = read_config(deps.storage)?;
@@ -128,6 +141,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         hub_contract: deps.api.addr_humanize(&config.hub_contract)?.to_string(),
         reward_denom: config.reward_denom,
         owner: deps.api.addr_humanize(&config.owner)?.to_string(),
+        swap_contract: deps.api.addr_humanize(&config.swap_contract)?.to_string(),
     })
 }
 

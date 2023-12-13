@@ -26,7 +26,7 @@ use crate::common::calculate_delegations;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::registry::{
     read_new_owner, store_new_owner, Config, NewOwnerAddr, Validator, ValidatorResponse, CONFIG,
-    REGISTRY,
+    REGISTRY, NewOwnerResponse,
 };
 use basset::hub::ExecuteMsg::{RedelegateProxy, UpdateGlobalIndex};
 
@@ -46,7 +46,7 @@ pub fn instantiate(
     )?;
 
     for v in msg.registry {
-        let _validator_addr = deps.api.addr_validate(&v.address.clone())?;
+       // let _validator_addr = deps.api.addr_validate(&v.address.clone())?;
         REGISTRY.save(deps.storage, v.address.as_str().as_bytes(), &v)?;
     }
 
@@ -152,7 +152,7 @@ pub fn add_validator(
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    let _validator_addr = deps.api.addr_validate(&validator.address.clone())?;
+    // let _validator_addr = deps.api.addr_validate(&validator.address.clone())?;
 
     REGISTRY.save(
         deps.storage,
@@ -323,8 +323,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             to_json_binary(&validators)
         }
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::NewOwner {} => to_json_binary(&query_new_owner(deps)?),
+
     }
 }
+
+fn query_new_owner(deps: Deps) -> StdResult<NewOwnerResponse> {
+    let new_owner = read_new_owner(deps.storage)?;
+    Ok(NewOwnerResponse {
+        new_owner: deps
+            .api
+            .addr_humanize(&new_owner.new_owner_addr)?
+            .to_string(),
+    })
+}
+
+
 
 fn query_config(deps: Deps) -> StdResult<Config> {
     let config = CONFIG.load(deps.storage)?;

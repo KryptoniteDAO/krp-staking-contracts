@@ -20,7 +20,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
     read_config, read_new_owner, store_config, store_new_owner, Config, NewOwnerAddr, CONFIG,
 };
-use basset::dispatcher::ConfigResponse;
+use basset::dispatcher::{ConfigResponse, NewOwnerResponse};
 use basset::hub::ExecuteMsg::{BondRewards, UpdateGlobalIndex};
 use basset::oracle_pyth::QueryMsg as PythOracleQueryMsg;
 use basset::swap_ext::{Asset, AssetInfo, SimulationResponse, SwapExecteMsg, SwapQueryMsg};
@@ -207,7 +207,6 @@ pub fn execute_update_config(
                 "keeper rate can not be greater than 1.",
             ));
         }
-
         CONFIG.update(deps.storage, |mut last_config| -> StdResult<_> {
             last_config.krp_keeper_rate = r;
             Ok(last_config)
@@ -597,9 +596,21 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::NewOwner {} => to_json_binary(&query_new_owner(deps)?),
         // QueryMsg::GetBufferedRewards {} => unimplemented!(),
     }
 }
+
+fn query_new_owner(deps: Deps) -> StdResult<NewOwnerResponse> {
+    let new_owner = read_new_owner(deps.storage)?;
+    Ok(NewOwnerResponse {
+        new_owner: deps
+            .api
+            .addr_humanize(&new_owner.new_owner_addr)?
+            .to_string(),
+    })
+}
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {

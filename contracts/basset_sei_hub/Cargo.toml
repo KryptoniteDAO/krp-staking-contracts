@@ -1,5 +1,5 @@
 [package]
-name = "basset_sei_hub"
+name = "basset-sei-hub"
 version = "1.0.0"
 authors = ["<smith@kryptonite.finance>"]
 edition = "2018"
@@ -42,11 +42,11 @@ schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 snafu = { version = "0.7.3" }
 rand = "0.5.0"
-basset_sei_rewards_dispatcher = {path = "../basset_sei_rewards_dispatcher", features = ["library"] }
-basset_sei_token_bsei = {path = "../basset_sei_token_bsei", features = ["library"]}
+basset-sei-rewards-dispatcher = {path = "../basset_sei_rewards_dispatcher", features = ["library"] }
+basset-sei-token-bsei = {path = "../basset_sei_token_bsei", features = ["library"]}
 basset = { path = "../../packages/basset", default-features = false, version = "0.1.0"}
 signed_integer = { path = "../../packages/signed_integers", default-features = false, version = "0.1.0"}
-basset_sei_validators_registry = {path = "../basset_sei_validators_registry", features = ["library"]}
+basset-sei-validators-registry = {path = "../basset_sei_validators_registry", features = ["library"]}
 cosmwasm-bignumber =  { path = "../../packages/bignumber", version = "3.0.0"}
 sei-cosmwasm = "0.4.10"
 

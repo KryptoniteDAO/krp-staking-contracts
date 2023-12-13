@@ -114,6 +114,7 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
         reward_denom: "kusd".to_string(),
+        update_reward_index_addr: "update_reward_index_addr".to_string(),
     };
 
     let owner_info = mock_info(owner.as_str(), &[]);
@@ -127,6 +128,7 @@ pub fn initialize<S: Storage, A: Api, Q: Querier>(
         airdrop_registry_contract: Some(String::from("airdrop_registry")),
         validators_registry_contract: Some(String::from("validators_registry")),
         rewards_contract: Some(String::from("rewards")),
+        update_reward_index_addr: Some("update_reward_index_addr".to_string()),
     };
     let res = execute(deps.as_mut(), mock_env(), owner_info, register_msg).unwrap();
     assert_eq!(1, res.messages.len());
@@ -217,6 +219,7 @@ fn proper_initialization() {
         peg_recovery_fee: Decimal::zero(),
         er_threshold: Decimal::one(),
         reward_denom: "kusd".to_string(),
+        update_reward_index_addr: "update_reward_index_addr".to_string(),
     };
 
     let owner = String::from("owner1");
@@ -263,6 +266,7 @@ fn proper_initialization() {
         from_json(&query(deps.as_ref(), mock_env(), conf).unwrap()).unwrap();
     let expected_conf = ConfigResponse {
         owner: String::from("owner1"),
+        update_reward_index_addr: String::from("update_reward_index_addr"),
         reward_dispatcher_contract: None,
         validators_registry_contract: None,
         bsei_token_contract: None,
@@ -306,6 +310,7 @@ fn bad_initialization() {
         peg_recovery_fee: Decimal::from_str("1.1").unwrap(),
         er_threshold: Decimal::one(),
         reward_denom: "kusd".to_string(),
+        update_reward_index_addr: "update_reward_index_addr".to_string(),
     };
 
     let owner = String::from("owner1");
@@ -735,6 +740,7 @@ pub fn proper_update_global_index() {
     let token_contract = String::from("token");
     let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
+    let update_index_addr =  String::from("update_reward_index_addr");
 
     initialize(
         deps.borrow_mut(),
@@ -762,7 +768,7 @@ pub fn proper_update_global_index() {
     // let info = mock_info(&addr1, &[]);
     // let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     // assert_eq!(res.messages.len(), 2);
-    let info = mock_info(&owner, &[]);
+    let info = mock_info(&update_index_addr.clone(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(res.messages.len(), 2);
 
@@ -796,7 +802,7 @@ pub fn proper_update_global_index() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&owner, &[]);
+    let info = mock_info(&update_index_addr.clone(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(3, res.messages.len());
 
@@ -867,6 +873,7 @@ pub fn proper_update_global_index_two_validators() {
     let token_contract = String::from("token");
     let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
+    let update_index_addr =  String::from("update_reward_index_addr");
 
     initialize(
         deps.borrow_mut(),
@@ -913,7 +920,7 @@ pub fn proper_update_global_index_two_validators() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&owner, &[]);
+    let info = mock_info(&update_index_addr.clone(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(4, res.messages.len());
 
@@ -950,6 +957,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
     let token_contract = String::from("token");
     let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
+    let update_index_addr =  String::from("update_reward_index_addr");
 
     initialize(
         deps.borrow_mut(),
@@ -991,7 +999,7 @@ pub fn proper_update_global_index_respect_one_registered_validator() {
         airdrop_hooks: None,
     };
 
-    let info = mock_info(&owner, &[]);
+    let info = mock_info(&update_index_addr.clone(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(3, res.messages.len());
 
@@ -1070,7 +1078,7 @@ pub fn proper_receive() {
     // successful call
     let successful_unbond = Unbond {};
     let receive = Receive(Cw20ReceiveMsg {
-        sender: addr1,
+        sender: addr1.clone(),
         amount: Uint128::from(10u64),
         msg: to_json_binary(&successful_unbond).unwrap(),
     });
@@ -3804,6 +3812,7 @@ pub fn test_update_params() {
         peg_recovery_fee: None,
         er_threshold: None,
         paused: Some(false),
+        reward_denom: None,
     };
     let owner = String::from("owner1");
     let token_contract = String::from("token");
@@ -3846,6 +3855,7 @@ pub fn test_update_params() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(false),
+        reward_denom: None,
     };
 
     //the result must be 1
@@ -3869,6 +3879,7 @@ pub fn test_update_params() {
         peg_recovery_fee: Some(Decimal::from_str("1.1").unwrap()),
         er_threshold: None,
         paused: Some(false),
+        reward_denom: None,
     };
 
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
@@ -3885,6 +3896,7 @@ pub fn test_update_params() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::from_str("1.1").unwrap()),
         paused: Some(false),
+        reward_denom: None,
     };
 
     //the result must be 1
@@ -3918,6 +3930,7 @@ pub fn proper_recovery_fee() {
             Uint128::from(100u64),
         )),
         paused: Some(false),
+        reward_denom: None,
     };
     let owner = String::from("owner1");
     let token_contract = String::from("token");
@@ -4155,6 +4168,7 @@ pub fn proper_update_config() {
     let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
     let airdrop_registry = String::from("airdrop_registry");
+    let update_index_address = String::from("update_reward_index_addr");
 
     initialize(
         deps.borrow_mut(),
@@ -4188,6 +4202,7 @@ pub fn proper_update_config() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let info = mock_info(&invalid_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config);
@@ -4247,6 +4262,7 @@ pub fn proper_update_config() {
         peg_recovery_fee: None,
         er_threshold: None,
         paused: Some(false),
+        reward_denom: None,
     };
 
     let new_owner_info = mock_info(&new_owner, &[]);
@@ -4260,6 +4276,7 @@ pub fn proper_update_config() {
         peg_recovery_fee: None,
         er_threshold: None,
         paused: Some(false),
+        reward_denom: None,
     };
 
     let new_owner_info = mock_info(&owner, &[]);
@@ -4273,6 +4290,7 @@ pub fn proper_update_config() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4298,6 +4316,7 @@ pub fn proper_update_config() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
@@ -4328,6 +4347,7 @@ pub fn proper_update_config() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4348,6 +4368,7 @@ pub fn proper_update_config() {
         bsei_token_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
@@ -4368,6 +4389,7 @@ pub fn proper_update_config() {
         bsei_token_contract: None,
         stsei_token_contract: Some(stsei_token_contract.clone()),
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let new_owner_info = mock_info(&new_owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config);
@@ -4382,6 +4404,28 @@ pub fn proper_update_config() {
     assert_eq!(
         config_query.stsei_token_contract.unwrap(),
         stsei_token_contract,
+    );
+
+
+    let update_config = UpdateConfig {
+        rewards_dispatcher_contract: None,
+        bsei_token_contract: None,
+        airdrop_registry_contract: None,
+        validators_registry_contract: None,
+        stsei_token_contract: None,
+        rewards_contract: None,
+        update_reward_index_addr: Some("new_update_index_addr".to_string()),
+    };
+    let new_owner_info = mock_info(&new_owner, &[]);
+    let res = execute(deps.as_mut(), mock_env(), new_owner_info, update_config).unwrap();
+    assert_eq!(res.messages.len(), 0);
+
+    let config = Config {};
+    let config_query: ConfigResponse =
+        from_json(&query(deps.as_ref(), mock_env(), config).unwrap()).unwrap();
+    assert_eq!(
+        config_query.update_reward_index_addr,
+        String::from("new_update_index_addr")
     );
 }
 
@@ -4537,7 +4581,7 @@ fn proper_update_global_index_with_airdrop() {
     let token_contract = String::from("token");
     let stsei_token_contract = String::from("stsei_token");
     let reward_contract = String::from("reward");
-
+    let  update_index_addr = String::from("update_reward_index_addr");
     initialize(
         deps.borrow_mut(),
         owner.clone(),
@@ -4583,7 +4627,7 @@ fn proper_update_global_index_with_airdrop() {
         airdrop_hooks: Some(vec![binary_msg.clone(), binary_msg2.clone()]),
     };
 
-    let info = mock_info(&owner, &[]);
+    let info = mock_info(&update_index_addr.clone(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, reward_msg).unwrap();
     assert_eq!(5, res.messages.len());
 
@@ -5053,25 +5097,22 @@ fn proper_redelegate_proxy() {
     }
 
     // check that creator can send such messages
-    // let info = mock_info(&owner, &[]);
-    // let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap();
-    // let redelegate = &res.messages[0];
-    // match redelegate.msg.clone() {
-    //     CosmosMsg::Staking(StakingMsg::Redelegate {
-    //         src_validator,
-    //         dst_validator,
-    //         amount,
-    //     }) => {
-    //         assert_eq!(src_validator, String::from("src_validator"));
-    //         assert_eq!(dst_validator, String::from("dst_validator"));
-    //         assert_eq!(amount, Coin::new(100, "usei"));
-    //     }
-    //     _ => panic!("Unexpected message: {:?}", redelegate),
-    // }
-    // check that creator can not send such messages
-    let info = mock_info(&owner, &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err("unauthorized"));
+    let info = mock_info(&validators_registry.clone(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, redelegate_proxy_msg).unwrap();
+
+    let redelegate = &res.messages[0];
+    match redelegate.msg.clone() {
+        CosmosMsg::Staking(StakingMsg::Redelegate {
+            src_validator,
+            dst_validator,
+            amount,
+        }) => {
+            assert_eq!(src_validator, String::from("src_validator"));
+            assert_eq!(dst_validator, String::from("dst_validator"));
+            assert_eq!(amount, Coin::new(100, "usei"));
+        }
+        _ => panic!("Unexpected message: {:?}", redelegate),
+    }
 }
 
 ///
@@ -5102,6 +5143,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(true),
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     execute(deps.as_mut(), mock_env(), creator_info, update_prams).unwrap();
@@ -5115,6 +5157,7 @@ pub fn test_pause() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let info = mock_info(&owner, &[]);
     let res = execute(deps.as_mut(), mock_env(), info, update_config);
@@ -5130,6 +5173,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(false),
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     execute(deps.as_mut(), mock_env(), creator_info, update_prams).unwrap();
@@ -5142,6 +5186,7 @@ pub fn test_pause() {
         validators_registry_contract: None,
         stsei_token_contract: None,
         rewards_contract: None,
+        update_reward_index_addr: None,
     };
     let info = mock_info(&owner, &[]);
     execute(deps.as_mut(), mock_env(), info, update_config).unwrap();
@@ -5165,6 +5210,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(true),
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     execute(deps.as_mut(), mock_env(), creator_info, update_prams).unwrap();
@@ -5176,6 +5222,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(false),
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), creator_info, update_prams);
@@ -5191,6 +5238,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: None,
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), creator_info, update_prams);
@@ -5210,6 +5258,7 @@ pub fn test_pause() {
         peg_recovery_fee: Some(Decimal::one()),
         er_threshold: Some(Decimal::zero()),
         paused: Some(false),
+        reward_denom: None,
     };
     let creator_info = mock_info(String::from("owner1").as_str(), &[]);
     execute(deps.as_mut(), mock_env(), creator_info, update_prams).unwrap();

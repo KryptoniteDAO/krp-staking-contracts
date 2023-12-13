@@ -1,5 +1,5 @@
 [package]
-name = "basset_sei_rewards_dispatcher"
+name = "basset-sei-rewards-dispatcher"
 version = "0.1.0"
 authors = ["<smith@kryptonite.finance>"]
 edition = "2018"
@@ -39,7 +39,7 @@ schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 snafu = { version = "0.7.3" }
 basset = { path = "../../packages/basset", default-features = false, version = "0.1.0"}
-basset_sei_reward = {path = "../basset_sei_reward", features = ["library"] }
+#basset-sei-reward = {path = "../basset_sei_reward", features = ["library"] }
 cw-storage-plus = "0.13.2"
 cw20 = { version = "0.16.0" }
 cw20-base = { version = "0.16.0", features = ["library"] }

@@ -9,6 +9,7 @@ pub mod swap_ext;
 pub mod oracle_pyth;
 pub mod dispatcher;
 pub mod handle;
+pub mod common;
 #[cfg(test)]
 mod mock_querier;
 
