@@ -19,7 +19,8 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use basset::hub::{
     AllHistoryResponse, Config, ConfigResponse, CurrentBatchResponse, ExecuteMsg, InstantiateMsg,
-    MigrateMsg, Parameters, QueryMsg, State, StateResponse, UnbondRequestsResponse, WithdrawableUnbondedResponse,
+    MigrateMsg, NewOwnerResponse, Parameters, QueryMsg, State, StateResponse,
+    UnbondRequestsResponse, WithdrawableUnbondedResponse,
 };
 
 fn main() {
@@ -41,4 +42,5 @@ fn main() {
     export_schema(&schema_for!(CurrentBatchResponse), &out_dir);
     export_schema(&schema_for!(AllHistoryResponse), &out_dir);
     export_schema(&schema_for!(ConfigResponse), &out_dir);
+    export_schema(&schema_for!(NewOwnerResponse), &out_dir);
 }
